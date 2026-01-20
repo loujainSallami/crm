@@ -3,3 +3,133 @@ controllers:
         path: ../src/Controller/
         namespace: App\Controller
     type: attribute
+api_login_check:
+    path: /api/login_check
+api_refresh_token:
+    path: /api/api_refresh_token
+    # USERS
+api_delete_user_direct:
+    path: /api/vicidial/user/{userId}/delete-direct
+    controller: App\Controller\UsersController\UserController::deleteUserDirectly
+    methods: [DELETE]
+
+api_add_user:
+    path: /api/vicidial/user
+    controller: App\Controller\UsersController\UserController::addUser
+    methods: [POST]
+
+api_update_user:
+    path: /api/vicidial/user
+    controller: App\Controller\UsersController\UserController::updateUser
+    methods: [PUT]
+
+api_delete_user:
+    path: /api/vicidial/user/{userId}
+    controller: App\Controller\UsersController\UserController::deleteUser
+    methods: [DELETE]
+
+api_get_user_info:
+    path: /api/vicidial/user/{userId}
+    controller: App\Controller\UsersController\UserController::getUserInfo
+    methods: [GET]
+
+api_get_users:
+    path: /api/vicidial/users
+    controller: App\Controller\UsersController\UserController::getUsers
+    methods: [GET]
+
+# GROUP 
+
+api_add_group:
+    path: /api/vicidial/group
+    controller: App\Controller\UsersController\Group\GroupController::addGroup
+    methods: [POST]
+
+api_update_group:
+    path: /api/vicidial/group/{id}
+    controller: App\Controller\UsersController\Group\GroupController::updateGroup
+    methods: [PUT]
+
+api_delete_group:
+    path: /api/vicidial/group/{id}
+    controller: App\Controller\UsersController\Group\GroupController::deleteGroup
+    methods: [DELETE]
+
+api_get_groups:
+    path: /api/vicidial/groups
+    controller: App\Controller\UsersController\Group\GroupController::getGroups
+    methods: [GET]
+
+api_user-groups:
+    path: /api/vicidial/user-groups
+    controller: App\Controller\UsersController\Group\GroupController::getUserGroups
+    methods: [GET]
+    
+# CAMPAIGNS
+api_create_campaign:
+    path: /api/vicidial/campaign
+    controller: App\Controller\CampaignController\CampaignController::addCampaign
+    methods: [POST, OPTIONS]
+
+api_delete_campaign:
+    path: /api/vicidial/campaign/{campaignId}
+    controller: App\Controller\CampaignController\CampaignController::deleteCampaign
+    methods: [DELETE]
+
+api_update_campaign:
+    path: /api/vicidial/campaign/{campaignId}
+    controller: App\Controller\CampaignController\CampaignController::updateCampaign
+    methods: [PUT]
+
+api_get_user_groups:
+    path: /api/vicidial/user-groups
+    controller: App\Controller\CampaignController\CampaignController::getUserGroups
+    methods: [GET]
+
+
+
+api_get_campaigns:
+    path: /api/vicidial/campaigns
+    controller: App\Controller\CampaignController\CampaignController::getCampaigns
+    methods: [GET]
+
+api_get_campaign:
+    path: /api/vicidial/campaign/{campaignId}
+    controller: App\Controller\CampaignController\CampaignController::getCampaign
+    methods: [GET]
+
+#LISTS 
+
+api_get_lists:
+    path: /api/vicidial/lists
+    controller: App\Controller\Lists\ListController::getLists
+    methods: [GET]
+
+api_get_list_info:
+    path: /api/vicidial/list/{listId}
+    controller: App\Controller\Lists\ListController::getListInfo
+    methods: GET
+
+api_add_list:
+    path: /api/vicidial/list
+    controller: App\Controller\Lists\ListController::addList
+    methods: POST
+
+
+api_get_list_custom_fields:
+    path: /api/vicidial/list/custom-fields/{listId?}
+    controller: App\Controller\ListController::getCustomFields
+    methods: GET
+
+
+
+api_update_list:
+    path: /api/vicidial/list/{listId}
+    controller: App\Controller\ListController::updateList
+    methods: PUT
+
+
+vicidial_user_create:
+    path: /api/userCreate
+    controller: App\Controller\VicidialUserController::createUser
+    methods: [POST]
