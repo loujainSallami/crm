@@ -2,36 +2,25 @@
 
 namespace App\Controller;
 
-use App\Entity\CrmUser;
-use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
-use App\Repository\VicidialUserRepository;
+use App\Entity\CRM\CrmUser;
+use App\Repository\CrmUserRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
 
-#[Route('/api')]
 final class VicidialUserController extends AbstractController
 {
-    private VicidialUserRepository $userRepository;
-    private EntityManagerInterface $manager;
-    private JWTTokenManagerInterface $jwtManager;
-    private UserPasswordHasherInterface $passwordHasher;
-
     public function __construct(
-        EntityManagerInterface $manager,
-        VicidialUserRepository $userRepository,
-        JWTTokenManagerInterface $jwtManager,
-        UserPasswordHasherInterface $passwordHasher
-    ) {
-        $this->manager = $manager;
-        $this->userRepository = $userRepository;
-        $this->jwtManager = $jwtManager;
-        $this->passwordHasher = $passwordHasher;
-    }
+        private readonly EntityManagerInterface $entityManager,
+        private readonly CrmUserRepository $userRepository,
+        private readonly JWTTokenManagerInterface $jwtManager,
+        private readonly UserPasswordHasherInterface $passwordHasher
+    ) {}
 
     // ================= CREATION UTILISATEUR =================
     #[Route('/userCreate', name: 'user_create', methods: ['POST'])]
@@ -39,83 +28,74 @@ final class VicidialUserController extends AbstractController
     {
         $data = json_decode($request->getContent(), true);
 
-        if (!isset($data['user'], $data['pass'], $data['full_name'])) {
-            return new JsonResponse([
+        // ✅ on standardise: username + pass
+        if (!is_array($data) || empty($data['username']) || empty($data['pass'])) {
+            return $this->json([
                 'status' => false,
-                'message' => 'Veuillez fournir un nom d’utilisateur, un mot de passe et un nom complet.'
+                'message' => 'Champs requis: username, pass.'
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $username = $data['user'];
-        $password = $data['pass'];
-        $fullName = $data['full_name'];
+        $username = trim((string) $data['username']);
+        $plainPassword = (string) $data['pass'];
 
-        // Vérifier si l'utilisateur existe déjà
-        $existingUser = $this->userRepository->findOneBy(['user' => $username]);
+        // ✅ vérifier existence
+        $existingUser = $this->userRepository->findOneBy(['username' => $username]);
         if ($existingUser) {
-            return new JsonResponse([
+            return $this->json([
                 'status' => false,
                 'message' => 'Cet utilisateur existe déjà.'
             ], Response::HTTP_CONFLICT);
         }
 
-        // Créer un nouvel utilisateur
+        // ✅ création user
         $newUser = new CrmUser();
-        $newUser->setUser($username)
-                ->setFullName($fullName);
+        $newUser->setUsername($username);
 
-        // Hachage sécurisé du mot de passe
-        $hashedPassword = $this->passwordHasher->hashPassword($newUser, $password);
-        $newUser->setPass($hashedPassword);
+        // hash
+        $hashed = $this->passwordHasher->hashPassword($newUser, $plainPassword);
+        $newUser->setPassword($hashed);
 
-        // Persister dans la base
-        $this->manager->persist($newUser);
-        $this->manager->flush();
+        // champs optionnels
+        if (isset($data['full_name'])) {
+            $newUser->setFullName($data['full_name']);
+        }
+        if (isset($data['user_level'])) {
+            $newUser->setUserLevel((int) $data['user_level']);
+        }
 
-        // Générer un token JWT
+        $this->entityManager->persist($newUser);
+        $this->entityManager->flush();
+
+        // ✅ JWT
         $token = $this->jwtManager->create($newUser);
 
-        return new JsonResponse([
+        return $this->json([
             'status' => true,
             'message' => 'Utilisateur créé avec succès.',
-            'token' => $token
+            'token' => $token,
+            'user' => [
+                'id' => $newUser->getId(),
+                'username' => $newUser->getUsername(),
+                'fullName' => $newUser->getFullName(),
+                'userLevel' => $newUser->getUserLevel(),
+            ]
         ], Response::HTTP_CREATED);
     }
 
-    // ================= LISTE DES UTILISATEURS =================
-    #[Route('/getAllUsers', name: 'get_all_users', methods: ['GET'])]
+    // ================= RECUPERER TOUS LES UTILISATEURS =================
+    #[Route('/api/getAllUsers', name: 'get_all_users', methods: ['GET'])]
     public function getAllUsers(): JsonResponse
     {
-        $users = $this->userRepository->findAll();
-
-        if (empty($users)) {
-            return new JsonResponse([
-                'status' => false,
-                'message' => 'Aucun utilisateur trouvé.'
-            ], Response::HTTP_NOT_FOUND);
-        }
-
-        $data = array_map(fn(CrmUser $u) => [
-            'id' => $u->getUserId(),
-            'user' => $u->getUser(),
-            'full_name' => $u->getFullName(),
-        ], $users);
-
-        return new JsonResponse($data, Response::HTTP_OK);
-    }
-
-    // ================= UTILISATEUR ACTUEL =================
-    #[Route('/me', name: 'current_user', methods: ['GET'])]
-    public function me(): JsonResponse
-    {
-        $user = $this->getUser();
-        if (!$user) {
-            return new JsonResponse(['status' => false, 'message' => 'Utilisateur non authentifié.'], Response::HTTP_UNAUTHORIZED);
-        }
+        // ✅ éviter hydration + relations
+        $users = $this->userRepository->createQueryBuilder('u')
+            ->select('u.user_id, u.username, u.full_name, u.user_level')
+            ->getQuery()
+            ->getArrayResult();
 
         return $this->json([
-            'id' => $user->getUserIdentifier(),
-            'roles' => $user->getRoles(),
-        ]);
+            'status' => true,
+            'users' => $users
+        ], Response::HTTP_OK);
     }
 }

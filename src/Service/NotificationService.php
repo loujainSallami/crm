@@ -2,38 +2,43 @@
 
 namespace App\Service;
 
-use App\Entity\CrmUser;
-use App\Entity\Notification;
-use App\Entity\VicidialUser ;
-use App\Entity\Appointment;
+use App\Entity\CRM\CrmUser;
+use App\Entity\CRM\Notification;
+use App\Entity\CRM\Appointment;
 use App\Repository\NotificationRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 class NotificationService
 {
-    private NotificationRepository $notificationRepository;
-    private EntityManagerInterface $entityManager;
-
-    public function __construct(NotificationRepository $notificationRepository, EntityManagerInterface $entityManager)
-    {
-        $this->notificationRepository = $notificationRepository;
-        $this->entityManager = $entityManager;
-    }
+    public function __construct(
+        private readonly NotificationRepository $notificationRepository,
+        private readonly EntityManagerInterface $entityManager
+    ) {}
 
     public function getAllNotifications(CrmUser $user): array
     {
-        return $this->notificationRepository->findByUser ($user);
+        return $this->notificationRepository->findBy(
+            ['crmUser' => $user],
+            ['createdAt' => 'DESC']
+        );
     }
 
-    public function createNotification(CrmUser  $user, string $message, ?int $appointmentId = null): Notification
-    {
+    public function createNotification(
+        CrmUser $user,
+        string $message,
+        ?int $appointmentId = null
+    ): Notification {
         $notification = new Notification();
-        $notification->setMessage($message)
-                     ->setUser ($user)
-                     ->setCreatedAt(new \DateTime());
+        $notification->setMessage($message);
+        $notification->setCrmUser($user);
+        $notification->setCreatedAt(new \DateTimeImmutable());
+        $notification->setIsRead(false);
 
-        if ($appointmentId) {
-            $appointment = $this->entityManager->getRepository(Appointment::class)->find($appointmentId);
+        if ($appointmentId !== null) {
+            $appointment = $this->entityManager
+                ->getRepository(Appointment::class)
+                ->find($appointmentId);
+
             if ($appointment) {
                 $notification->setAppointment($appointment);
             }
@@ -57,15 +62,19 @@ class NotificationService
         $this->entityManager->flush();
     }
 
-    public function getUnreadNotifications(CrmUser  $user): array
+    public function getUnreadNotifications(CrmUser $user): array
     {
-        return $this->notificationRepository->findUnreadByUser ($user);
+        return $this->notificationRepository->findBy(
+            ['crmUser' => $user, 'isRead' => false],
+            ['createdAt' => 'DESC']
+        );
     }
-    // src/Service/NotificationService.php
 
-public function getAllNotificationsForAdmin(): array
-{
-    return $this->notificationRepository->findAll(); // Toutes les notifications
-}
-
+    public function getAllNotificationsForAdmin(): array
+    {
+        return $this->notificationRepository->findBy(
+            [],
+            ['createdAt' => 'DESC']
+        );
+    }
 }

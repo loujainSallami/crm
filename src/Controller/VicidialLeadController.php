@@ -2,118 +2,148 @@
 
 namespace App\Controller;
 
-use App\Repository\VicidiailLeadRepository;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\JsonResponse;
-use App\Entity\VicidialLead;
+use App\Entity\Vicidial\CrmLead;
+use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
+
 #[Route('/api/vicidial-leads')]
 class VicidialLeadController extends AbstractController
 {
-    private EntityManagerInterface $entityManager;
-    private VicidiailLeadRepository $leadRepository;
+    public function __construct(
+        private readonly ManagerRegistry $registry,
+    ) {}
 
-    public function __construct(EntityManagerInterface $entityManager, VicidiailLeadRepository $leadRepository)
+    private function vicidialEm()
     {
-        $this->entityManager = $entityManager;
-        $this->leadRepository = $leadRepository;
+        return $this->registry->getManager('vicidial');
     }
 
-    #[Route('/getAllLeads', name: 'get_all_leads', methods: ['GET'])]
-    public function getAllLeads(): JsonResponse
+    /**
+     * GET /api/vicidial-leads
+     */
+    #[Route('', name: 'vicidial_lead_index', methods: ['GET'])]
+    public function index(): JsonResponse
     {
-        $leads = $this->leadRepository->findAll();
+        $em = $this->vicidialEm();
+        $leads = $em->getRepository(CrmLead::class)->findAll();
 
-        if (empty($leads)) {
-            return new JsonResponse([
+        if (!$leads) {
+            return $this->json([
                 'status' => false,
                 'message' => 'Aucun lead trouvé.'
-            ], Response::HTTP_NOT_FOUND); // ✅ utilisation correcte de Response
+            ], Response::HTTP_NOT_FOUND);
         }
 
-        // Nettoyage des données pour éviter les références circulaires
-        $data = array_map(function (VicidialLead $lead) {
+        $data = array_map(static function (CrmLead $lead): array {
             return [
-                'id'          => $lead->getId(),
-                'firstName'   => $lead->getFirstName(),
-                'lastName'    => $lead->getLastName(),
+                'id' => $lead->getId(),
+                'firstName' => $lead->getFirstName(),
+                'lastName' => $lead->getLastName(),
                 'phoneNumber' => $lead->getPhoneNumber(),
+                'email' => $lead->getEmail(),
             ];
         }, $leads);
 
-        return new JsonResponse($data, Response::HTTP_OK);
+        return $this->json($data, Response::HTTP_OK);
     }
 
-
-
+    /**
+     * POST /api/vicidial-leads
+     */
     #[Route('', name: 'vicidial_lead_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
-        $lead = new VicidialLead();
-        // Assurez-vous de valider et de mapper les données ici
+        $data = json_decode($request->getContent(), true) ?? [];
+
+        if (empty($data['first_name']) || empty($data['last_name']) || empty($data['phone_number'])) {
+            return $this->json([
+                'error' => 'first_name, last_name, phone_number sont obligatoires'
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $lead = new CrmLead();
         $lead->setFirstName($data['first_name']);
         $lead->setLastName($data['last_name']);
         $lead->setPhoneNumber($data['phone_number']);
-        $lead->setEmail($data['email']);
-        // Ajoutez d'autres propriétés si nécessaire
+        $lead->setEmail($data['email'] ?? null);
 
-        $this->vicidialLeadService->createLead($lead);
+        $em = $this->vicidialEm();
+        $em->persist($lead);
+        $em->flush();
 
-        return new JsonResponse(
-            $this->serializer->serialize($lead, 'json', ['groups' => 'vicidial_lead:read']),
-            Response::HTTP_CREATED,
-            [],
-            true
-        );
+        return $this->json([
+            'message' => 'Lead créé avec succès',
+            'id' => $lead->getId()
+        ], Response::HTTP_CREATED);
     }
 
-    #[Route('/{id}', name: 'vicidial_lead_show', methods: ['GET'])]
+    /**
+     * GET /api/vicidial-leads/{id}
+     */
+    #[Route('/{id}', name: 'vicidial_lead_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(int $id): JsonResponse
     {
-        $lead = $this->vicidialLeadService->getLeadById($id); // Vous devez ajouter cette méthode dans le service
+        $em = $this->vicidialEm();
+        $lead = $em->getRepository(CrmLead::class)->find($id);
 
-        return new JsonResponse(
-            $this->serializer->serialize($lead, 'json', ['groups' => 'vicidial_lead:read']),
-            Response::HTTP_OK,
-            [],
-            true
-        );
+        if (!$lead) {
+            return $this->json(['message' => 'Lead non trouvé'], Response::HTTP_NOT_FOUND);
+        }
+
+        return $this->json([
+            'id' => $lead->getId(),
+            'firstName' => $lead->getFirstName(),
+            'lastName' => $lead->getLastName(),
+            'phoneNumber' => $lead->getPhoneNumber(),
+            'email' => $lead->getEmail(),
+        ], Response::HTTP_OK);
     }
 
-    #[Route('/{id}', name: 'vicidial_lead_update', methods: ['PUT'])]
+    /**
+     * PUT /api/vicidial-leads/{id}
+     */
+    #[Route('/{id}', name: 'vicidial_lead_update', requirements: ['id' => '\d+'], methods: ['PUT'])]
     public function update(Request $request, int $id): JsonResponse
     {
-        $lead = $this->vicidialLeadService->getLeadById($id); // Vous devez ajouter cette méthode dans le service
-        $data = json_decode($request->getContent(), true);
+        $data = json_decode($request->getContent(), true) ?? [];
 
-        // Mettez à jour les propriétés du lead
-        $lead->setFirstName($data['first_name']);
-        $lead->setLastName($data['last_name']);
-        $lead->setPhoneNumber($data['phone_number']);
-        $lead->setEmail($data['email']);
-        // Ajoutez d'autres propriétés si nécessaire
+        $em = $this->vicidialEm();
+        $lead = $em->getRepository(CrmLead::class)->find($id);
 
-        $this->vicidialLeadService->updateLead($lead);
+        if (!$lead) {
+            return $this->json(['message' => 'Lead non trouvé'], Response::HTTP_NOT_FOUND);
+        }
 
-        return new JsonResponse(
-            $this->serializer->serialize($lead, 'json', ['groups' => 'vicidial_lead:read']),
-            Response::HTTP_OK,
-            [],
-            true
-        );
+        $lead->setFirstName($data['first_name'] ?? $lead->getFirstName());
+        $lead->setLastName($data['last_name'] ?? $lead->getLastName());
+        $lead->setPhoneNumber($data['phone_number'] ?? $lead->getPhoneNumber());
+        $lead->setEmail($data['email'] ?? $lead->getEmail());
+
+        $em->flush();
+
+        return $this->json(['message' => 'Lead mis à jour avec succès'], Response::HTTP_OK);
     }
 
-    #[Route('/{id}', name: 'vicidial_lead_delete', methods: ['DELETE'])]
+    /**
+     * DELETE /api/vicidial-leads/{id}
+     */
+    #[Route('/{id}', name: 'vicidial_lead_delete', requirements: ['id' => '\d+'], methods: ['DELETE'])]
     public function delete(int $id): JsonResponse
     {
-        $lead = $this->vicidialLeadService->getLeadById($id); // Vous devez ajouter cette méthode dans le service
-        $this->vicidialLeadService->deleteLead($lead);
+        $em = $this->vicidialEm();
+        $lead = $em->getRepository(CrmLead::class)->find($id);
 
-        return new JsonResponse(null, Response::HTTP_NO_CONTENT);
+        if (!$lead) {
+            return $this->json(['message' => 'Lead non trouvé'], Response::HTTP_NOT_FOUND);
+        }
+
+        $em->remove($lead);
+        $em->flush();
+
+        return $this->json(null, Response::HTTP_NO_CONTENT);
     }
-    
 }

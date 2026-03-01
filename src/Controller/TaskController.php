@@ -2,9 +2,9 @@
 
 namespace App\Controller;
 
-use App\Entity\Task;
-use App\Entity\Appointment;
-use App\Entity\VicidialUser;
+use App\Entity\CRM\CrmUser;
+use App\Entity\CRM\Task;
+use App\Entity\CRM\Appointment;
 use App\Enum\TaskStatus;
 use App\Enum\TaskPriority;
 use App\Service\TaskService;
@@ -43,7 +43,7 @@ if (!$userId) {
 }
 
 // Chercher l’agent par son ID
-$user = $this->entityManager->getRepository(VicidialUser::class)->find($userId);
+$user = $this->entityManager->getRepository(CrmUser::class)->find($userId);
 
 if (!$user) {
     return $this->json([

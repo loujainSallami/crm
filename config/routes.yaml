@@ -6,7 +6,7 @@ controllers:
 api_login_check:
     path: /api/login_check
 api_refresh_token:
-    path: /api/api_refresh_token
+    path: /api/token/refresh
     # USERS
 api_delete_user_direct:
     path: /api/vicidial/user/{userId}/delete-direct

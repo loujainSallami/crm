@@ -2,11 +2,9 @@
 
 namespace App\Service;
 
-use App\Entity\CrmLead;
-use App\Entity\VicidailLead;
-use App\Entity\VicidialLead;
+
+use App\Entity\Vicidial\CrmLead;
 use App\Repository\VicidiailLeadRepository;
-use App\Repository\VicidialLeadRepository;
 use Doctrine\ORM\EntityNotFoundException; // Importation correcte
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -21,7 +19,7 @@ class VicidialLeadService
         $this->entityManager = $entityManager;
     }
 
-    public function createLead(CrmLead $lead): CrmLead
+    public function createLead( $lead): CrmLead
     {
         $this->entityManager->persist($lead);
         $this->entityManager->flush();

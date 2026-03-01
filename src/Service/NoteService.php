@@ -2,15 +2,14 @@
 
 namespace App\Service;
 
-use App\Entity\CrmUser;
-use App\Entity\Note;
-use App\Entity\VicidialUser;
-use App\Entity\Appointment;
+use App\Entity\CRM\Appointment;
+use App\Entity\CRM\CrmUser;
+use App\Entity\CRM\Note;
 use App\Repository\NoteRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Serializer\SerializerInterface;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class NoteService
 {
@@ -29,7 +28,7 @@ class NoteService
     {
         $note = new Note();
         $note->setContent($content)
-             ->setUser($user)
+             ->setCrmUser($user)              // ✅ IMPORTANT : setCrmUser (pas setUser)
              ->setAppointment($appointment)
              ->setCreatedAt(new \DateTimeImmutable());
 
@@ -74,26 +73,25 @@ class NoteService
     }
 
     /**
-     * Récupère les notes d'un rendez-vous
+     * ✅ Récupère les notes d'un rendez-vous (CRM Appointment)
      */
     public function getAppointmentNotes(Appointment $appointment): array
     {
+        // si ton repo attend un ID :
         $notes = $this->noteRepository->findByAppointment($appointment->getId());
+
+        // OU si ton repo attend l'objet Appointment, utilise plutôt :
+        // $notes = $this->noteRepository->findBy(['appointment' => $appointment], ['createdAt' => 'DESC']);
+
         return $this->serializeCollection($notes);
     }
-    
-    /**
-     * Recherche des notes contenant un terme spécifique
-     */
+
     public function searchNotes(string $query, int $limit = 10): array
     {
         $notes = $this->noteRepository->searchByContent($query, $limit);
         return $this->serializeCollection($notes);
     }
 
-    /**
-     * Marque une note comme importante
-     */
     public function markAsImportant(Note $note): array
     {
         $note->setIsImportant(true)
@@ -104,9 +102,6 @@ class NoteService
         return $this->serialize($note);
     }
 
-    /**
-     * Désactive le marquage important d'une note
-     */
     public function unmarkAsImportant(Note $note): array
     {
         $note->setIsImportant(false)
@@ -117,22 +112,16 @@ class NoteService
         return $this->serialize($note);
     }
 
-    /**
-     * Récupère les notes importantes d'un utilisateur
-     */
     public function getImportantNotes(CrmUser $user): array
     {
         $notes = $this->noteRepository->findBy(
-            ['user' => $user, 'isImportant' => true],
+            ['crmUser' => $user, 'isImportant' => true], // ✅ crmUser (pas user)
             ['createdAt' => 'DESC']
         );
 
         return $this->serializeCollection($notes);
     }
 
-    /**
-     * Récupère les statistiques des notes
-     */
     public function getNotesStats(?CrmUser $user = null): array
     {
         return [
@@ -142,9 +131,6 @@ class NoteService
         ];
     }
 
-    /**
-     * Valide une entité Note
-     */
     private function validate(Note $note): void
     {
         $errors = $this->validator->validate($note);
@@ -153,9 +139,6 @@ class NoteService
         }
     }
 
-    /**
-     * Sérialise une seule note
-     */
     private function serialize(Note $note): array
     {
         return json_decode(
@@ -164,9 +147,6 @@ class NoteService
         );
     }
 
-    /**
-     * Sérialise une collection de notes
-     */
     private function serializeCollection(array $notes): array
     {
         return json_decode(

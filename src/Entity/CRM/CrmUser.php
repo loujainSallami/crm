@@ -1,71 +1,48 @@
 <?php
 
-namespace App\Entity;
-use Symfony\Component\Serializer\Annotation\Groups;
-use App\Repository\VicidialUserRepository;
+namespace App\Entity\CRM;
+
+use App\Repository\CrmUserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
-use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
-#[ORM\Entity(repositoryClass: VicidialUserRepository::class)]
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+
+#[ORM\Entity(repositoryClass: CrmUserRepository::class)]
 #[ORM\Table(name: "crm_users")]
-#[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_USER', fields: ['user'])]
-#[UniqueEntity(fields: ['user'], message: 'There is already an account with this user')]
 class CrmUser implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: "IDENTITY")]
-
-    #[ORM\Column(type: "integer", options: ["unsigned" => true])]
-    #[Groups(['appointment:read', 'appointment:write'])]
-
+    #[ORM\Column(type: "integer")]
     private ?int $user_id = null;
 
-    #[ORM\Column(name: '"user"', type: 'string', length: 255, unique: true)]
-        #[Groups(['appointment:read', 'appointment:write'])]
+    #[ORM\Column(type: "string", length: 255, unique: true)]
+    private ?string $username = null;
 
-    private ?string $user = null;
-
-    #[ORM\Column(name: 'pass', type: 'string', length: 255)]
-        private ?string $pass = null;
+    // mot de passe hashé
+    #[ORM\Column(type: "string", length: 255)]
+    private ?string $pass = null;
 
     #[ORM\Column(type: "string", length: 50, nullable: true)]
-    #[Groups(['appointment:read', 'appointment:write'])]
-
-
     private ?string $full_name = null;
 
-    #[ORM\Column(type: "smallint", options: ["unsigned" => true], nullable: true)]
-    #[Groups(['appointment:read'])]
-
+    #[ORM\Column(type: "smallint", nullable: true)]
     private ?int $user_level = 1;
 
-   
-    /**
-     * @var Collection<int, Appointment>
-     */
-    #[ORM\OneToMany(targetEntity: Appointment::class, mappedBy: 'user')]
-    #[Groups(['user:read'])]
+    // ================= Relations =================
+
+    #[ORM\OneToMany(mappedBy: 'crmUser', targetEntity: Appointment::class)]
     private Collection $appointments;
-    /**
-     * @var Collection<int, Task>
-     */
-    #[ORM\OneToMany(targetEntity: Task::class, mappedBy: 'user')]
+
+    #[ORM\OneToMany(mappedBy: 'crmUser', targetEntity: Task::class)]
     private Collection $tasks;
 
-    /**
-     * @var Collection<int, Notification>
-     */
-    #[ORM\OneToMany(targetEntity: Notification::class, mappedBy: 'user')]
+    #[ORM\OneToMany(mappedBy: 'crmUser', targetEntity: Notification::class)]
     private Collection $notifications;
 
-    /**
-     * @var Collection<int, Note>
-     */
-    #[ORM\OneToMany(targetEntity: Note::class, mappedBy: 'user')]
+    #[ORM\OneToMany(mappedBy: 'crmUser', targetEntity: Note::class)]
     private Collection $notes;
 
     public function __construct()
@@ -76,23 +53,30 @@ class CrmUser implements UserInterface, PasswordAuthenticatedUserInterface
         $this->notes = new ArrayCollection();
     }
 
+    // ================= Getters/Setters =================
 
     public function getId(): ?int
     {
         return $this->user_id;
     }
 
-    public function getUser(): ?string
+    public function getUserId(): ?int
     {
-        return $this->user;
+        return $this->user_id;
     }
 
-    public function setUser(string $user): static
+    public function getUsername(): ?string
     {
-        $this->user = $user;
+        return $this->username;
+    }
+
+    public function setUsername(string $username): static
+    {
+        $this->username = $username;
         return $this;
     }
 
+    // Symfony Security utilise getPassword() via PasswordAuthenticatedUserInterface
     public function getPassword(): ?string
     {
         return $this->pass;
@@ -126,67 +110,32 @@ class CrmUser implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
+    // ================= Security =================
 
-
-
-
-
-  
-
-    /**
-     * @see UserInterface
-     */
-    public function getRoles(): array
-    {
-        // Assumes the user level defines their role
-        $roles = [];
-        if ($this->user_level >= 9) {
-            $roles[] = 'ROLE_ADMIN';
-        } else {
-            $roles[] = 'ROLE_USER';
-        }
-
-        return array_unique($roles);
-    }
-
-    /**
-     * @see UserInterface
-     */
     public function getUserIdentifier(): string
     {
-        return $this->user;
+        return $this->username ?? '';
     }
-        
-        
-      
-    /**
-     * @see PasswordAuthenticatedUserInterface
-     */
+
+    public function getRoles(): array
+    {
+        // Toujours au moins ROLE_USER
+        $roles = ['ROLE_USER'];
+
+        if ($this->user_level !== null && $this->user_level >= 9) {
+            $roles[] = 'ROLE_ADMIN';
+        }
+
+        return array_values(array_unique($roles));
+    }
+
     public function eraseCredentials(): void
     {
-        // No sensitive data to clear
+        // rien à effacer (si tu stockes des champs temporaires, efface-les ici)
     }
 
-    public function getUserId(): ?int
-    {
-        return $this->user_id;
-    }
+    // ================= Relations helpers =================
 
-    public function getPass(): ?string
-    {
-        return $this->pass;
-    }
-
-    public function setPass(string $pass): static
-    {
-        $this->pass = $pass;
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, Appointment>
-     */
     public function getAppointments(): Collection
     {
         return $this->appointments;
@@ -196,27 +145,21 @@ class CrmUser implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if (!$this->appointments->contains($appointment)) {
             $this->appointments->add($appointment);
-            $appointment->setUser($this);
+            $appointment->setCrmUser($this);
         }
-
         return $this;
     }
 
     public function removeAppointment(Appointment $appointment): static
     {
         if ($this->appointments->removeElement($appointment)) {
-            // set the owning side to null (unless already changed)
-            if ($appointment->getUser() === $this) {
-                $appointment->setUser(null);
+            if ($appointment->getCrmUser() === $this) {
+                $appointment->setCrmUser(null);
             }
         }
-
         return $this;
     }
 
-    /**
-     * @return Collection<int, Task>
-     */
     public function getTasks(): Collection
     {
         return $this->tasks;
@@ -228,25 +171,19 @@ class CrmUser implements UserInterface, PasswordAuthenticatedUserInterface
             $this->tasks->add($task);
             $task->setUser($this);
         }
-
         return $this;
     }
 
     public function removeTask(Task $task): static
     {
         if ($this->tasks->removeElement($task)) {
-            // set the owning side to null (unless already changed)
             if ($task->getUser() === $this) {
                 $task->setUser(null);
             }
         }
-
         return $this;
     }
 
-    /**
-     * @return Collection<int, Notification>
-     */
     public function getNotifications(): Collection
     {
         return $this->notifications;
@@ -256,27 +193,21 @@ class CrmUser implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if (!$this->notifications->contains($notification)) {
             $this->notifications->add($notification);
-            $notification->setUser($this);
+            $notification->setCrmUser($this);
         }
-
         return $this;
     }
 
     public function removeNotification(Notification $notification): static
     {
         if ($this->notifications->removeElement($notification)) {
-            // set the owning side to null (unless already changed)
-            if ($notification->getUser() === $this) {
-                $notification->setUser(null);
+            if ($notification->getCrmUser() === $this) {
+                $notification->setCrmUser(null);
             }
         }
-
         return $this;
     }
 
-    /**
-     * @return Collection<int, Note>
-     */
     public function getNotes(): Collection
     {
         return $this->notes;
@@ -286,22 +217,18 @@ class CrmUser implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if (!$this->notes->contains($note)) {
             $this->notes->add($note);
-            $note->setUser($this);
+            $note->setCrmUser($this);
         }
-
         return $this;
     }
 
     public function removeNote(Note $note): static
     {
         if ($this->notes->removeElement($note)) {
-            // set the owning side to null (unless already changed)
-            if ($note->getUser() === $this) {
-                $note->setUser(null);
+            if ($note->getCrmUser() === $this) {
+                $note->setCrmUser(null);
             }
         }
-
         return $this;
     }
-
 }

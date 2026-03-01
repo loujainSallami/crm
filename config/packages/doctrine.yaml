@@ -1,23 +1,37 @@
 doctrine:
-    dbal:
-        default_connection: default
-        connections:
-            default:
-                url: '%env(resolve:DATABASE_URL)%'
-            vicidial:
-                url: '%env(resolve:VICIDIAL_DATABASE_URL)%'
+  dbal:
+    default_connection: default
+    connections:
+      default:
+        url: '%env(resolve:DATABASE_URL)%'
+      vicidial:
+        url: '%env(resolve:VICIDIAL_DATABASE_URL)%'
+        server_version: 'mariadb-10.11.2'
 
-    orm:
-        auto_generate_proxy_classes: true
-        enable_lazy_ghost_objects: true
-        default_entity_manager: default
-        entity_managers:
-            default:
-                connection: default
-                mappings:
-                    App:
-                        is_bundle: false
-                        type: attribute
-                        dir: '%kernel.project_dir%/src/Entity'
-                        prefix: 'App\Entity'
-                        alias: App
+  orm:
+    auto_generate_proxy_classes: true
+    enable_lazy_ghost_objects: true
+    default_entity_manager: crm
+    entity_managers:
+      crm:
+        connection: default
+        mappings:
+          CRM:
+            is_bundle: false
+            type: attribute
+            dir: '%kernel.project_dir%/src/Entity/CRM'
+            prefix: 'App\Entity\CRM'
+            alias: CRM
+
+          GesdinetJWTRefreshTokenBundle:
+            is_bundle: true
+
+      vicidial:
+        connection: vicidial
+        mappings:
+          Vicidial:
+            is_bundle: false
+            type: attribute
+            dir: '%kernel.project_dir%/src/Entity/Vicidial'
+            prefix: 'App\Entity\Vicidial'
+            alias: Vicidial

@@ -9,10 +9,12 @@ services:
         autowire: true
         autoconfigure: true
         public: false
+        bind:
+            # Connexions DBAL
+            Doctrine\DBAL\Connection $crmConnection: '@doctrine.dbal.default_connection'
+            Doctrine\DBAL\Connection $vicidialConnection: '@doctrine.dbal.vicidial_connection'
 
-    # ==================================================
-    # Auto-enregistrement de tout le code App
-    # ==================================================
+    # Auto-enregistrement App\
     App\:
         resource: '../src/'
         exclude:
@@ -20,18 +22,14 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
 
-    # ==================================================
-    # Controllers (auto-détectés)
-    # ==================================================
+    # Controllers
     App\Controller\:
         resource: '../src/Controller/'
         tags: ['controller.service_arguments']
 
-    # ==================================================
-    # SERVICES UNIQUEMENT
-    # ==================================================
-
-    # ---------- Users ----------
+    # =========================
+    # USERS (CRM DB)
+    # =========================
     App\Service\Users\UserService:
         arguments:
             $connection: '@doctrine.dbal.default_connection'
@@ -48,7 +46,9 @@ services:
             $apiPass: '%vicidial.password%'
             $source: '%vicidial.source%'
 
-    # ---------- Vicidial ----------
+    # =========================
+    # VICIDIAL
+    # =========================
     App\Service\VicidialApiService:
         arguments:
             $client: '@http_client'
@@ -57,11 +57,14 @@ services:
             $apiPass: '%vicidial.password%'
             $source: '%vicidial.source%'
 
+    # DB Vicidial (corrigé)
     App\Service\VicidialDbService:
         arguments:
-            $vicidialConnection: '@doctrine.dbal.default_connection'
+            $vicidialConnection: '@doctrine.dbal.vicidial_connection'
 
-    # ---------- Campaigns ----------
+    # =========================
+    # CAMPAIGNS
+    # =========================
     App\Service\Campaigns\CampaignService:
         arguments:
             $client: '@http_client'
@@ -70,9 +73,11 @@ services:
             $apiUser: '%vicidial.username%'
             $apiPass: '%vicidial.password%'
             $source: '%vicidial.source%'
-            $entityManager: '@doctrine.orm.entity_manager'
+            $entityManager: '@doctrine.orm.crm_entity_manager'
 
-    # ---------- Lists ----------
+    # =========================
+    # LISTS
+    # =========================
     App\Service\Lists\ListService:
         arguments:
             $client: '@http_client'
@@ -81,14 +86,18 @@ services:
             $apiPass: '%vicidial.password%'
             $source: '%vicidial.source%'
 
-    # ---------- Statuses ----------
+    # =========================
+    # STATUSES (Vicidial DB)
+    # =========================
     App\Service\Statuses\StatusesService:
         arguments:
-            $connection: '@doctrine.dbal.default_connection'
-            $logger: '@logger'
+            $vicidialConnection: '@doctrine.dbal.vicidial_connection'
+            
 
-    # ---------- Repository ----------
+    # =========================
+    # REPOSITORY CRM USER
+    # =========================
     App\Repository\VicidialUserRepository:
-        factory: ['@doctrine.orm.entity_manager', getRepository]
+        factory: ['@doctrine.orm.crm_entity_manager', getRepository]
         arguments:
-            - App\Entity\CrmUser
+            - App\Entity\CRM\CrmUser

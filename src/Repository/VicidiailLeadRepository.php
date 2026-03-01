@@ -2,9 +2,7 @@
 
 namespace App\Repository;
 
-
-use App\Entity\CrmLead;
-use App\Entity\VicidialLead;
+use App\Entity\Vicidial\CrmLead;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -15,24 +13,25 @@ class VicidiailLeadRepository extends ServiceEntityRepository
         parent::__construct($registry, CrmLead::class);
     }
 
-
-    public function findByCampaign($campaignId)
+    public function findByCampaignId(int $campaignId): array
     {
-        return $this->createQueryBuilder('v')
-            ->andWhere('v.campaign = :campaignId')
-            ->setParameter('campaignId', $campaignId)
-            ->orderBy('v.id', 'ASC')
+        return $this->createQueryBuilder('l')
+            ->andWhere('l.campaign = :campaign')
+            ->setParameter('campaign', $campaignId) // OK si campaign est une relation ManyToOne (Campaign)
+            ->orderBy('l.id', 'ASC')
             ->getQuery()
             ->getResult();
     }
 
-    public function findByStatus($statusId)
+    /*
+    public function findByStatus(string $status): array
     {
-        return $this->createQueryBuilder('v')
-            ->andWhere('v.status = :statusId')
-            ->setParameter('statusId', $statusId)
-            ->orderBy('v.id', 'ASC')
+        return $this->createQueryBuilder('l')
+            ->andWhere('l.status = :status')
+            ->setParameter('status', $status)
+            ->orderBy('l.id', 'ASC')
             ->getQuery()
             ->getResult();
     }
+    */
 }

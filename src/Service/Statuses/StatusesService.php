@@ -3,63 +3,51 @@
 namespace App\Service\Statuses;
 
 use Doctrine\DBAL\Connection;
-use Psr\Log\LoggerInterface;
 
 class StatusesService
 {
-    private Connection $connection;
-    private LoggerInterface $logger;
+    public function __construct(
+        private readonly Connection $vicidialConnection
+    ) {}
 
-    public function __construct(Connection $connection, LoggerInterface $logger)
-    {
-        $this->connection = $connection;
-        $this->logger = $logger;
-    }
-
-
-    /**
-     * Récupère la liste de toutes les campagnes disponibles.
-     *
-     * @return array Tableau contenant les données des campagnes.
-     * @throws \Exception En cas d'erreur de base de données.
-     */
+    // 🔹 Récupérer tous les statuts
     public function getAllStatuses(): array
     {
-        try {
-            $query = "SELECT status , status_name  FROM vicidial_statuses";
-
-            return $this->connection->fetchAllAssociative($query);
-        } catch (\Exception $e) {
-            $this->logger->error("Erreur lors de la récupération des campagnes : " . $e->getMessage());
-            throw new \Exception("Erreur lors de la récupération des campagnes : " . $e->getMessage());
-        }
+        return $this->vicidialConnection->fetchAllAssociative(
+            "SELECT status, status_name, selectable FROM vicidial_statuses ORDER BY status ASC"
+        );
     }
 
+    // 🔹 Récupérer un statut spécifique
+    public function getStatusInfo(string $status): ?array
+    {
+        return $this->vicidialConnection->fetchAssociative(
+            "SELECT * FROM vicidial_statuses WHERE status = ?",
+            [$status]
+        );
+    }
+
+    // 🔹 Récupérer les statuts par campagne
+    public function getStatusesByCampaign(string $campaignId): array
+    {
+        return $this->vicidialConnection->fetchAllAssociative(
+            "SELECT status, status_name 
+             FROM vicidial_campaign_statuses 
+             WHERE campaign_id = ?",
+            [$campaignId]
+        );
+    }
+
+    // 🔹 Ajouter un nouveau statut
     public function addStatus(array $data): void
-{
-    $query = "
-        INSERT INTO vicidial_statuses (status, status_name, selectable, human_answered)
-        VALUES (:status, :status_name, :selectable, :human_answered)
-    ";
-
-    $this->connection->executeQuery($query, [
-        'status' => $data['status'],
-        'status_name' => $data['status_name'],
-        'selectable' => $data['selectable'] ?? 'Y',
-        'human_answered' => $data['human_answered'] ?? 'N',
-    ]);
-}
-
-
-public function getStatusesByCampaign(string $campaignId): array
-{
-    $sql = "SELECT * FROM vicidial_campaign_statuses WHERE campaign_id = :campaignId";
-
-    try {
-        return $this->connection->fetchAllAssociative($sql, ['campaignId' => $campaignId]);
-    } catch (\Exception $e) {
-        throw new \Exception('Erreur lors de la récupération des statuts : ' . $e->getMessage());
+    {
+        $this->vicidialConnection->insert(
+            'vicidial_statuses',
+            [
+                'status' => $data['status'],
+                'status_name' => $data['status_name'],
+                'selectable' => $data['selectable'] ?? 'Y',
+            ]
+        );
     }
-}
-    
 }

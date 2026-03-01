@@ -2,10 +2,9 @@
 
 namespace App\Service;
 
-use App\Entity\CrmUser;
-use App\Entity\Task;
-use App\Entity\VicidialUser;
-use App\Entity\Appointment;
+use App\Entity\CRM\CrmUser;
+use App\Entity\CRM\Task;
+use App\Entity\CRM\Appointment;
 use App\Enum\TaskStatus;
 use App\Enum\TaskPriority;
 use Doctrine\ORM\EntityManagerInterface;
@@ -31,7 +30,6 @@ class TaskService
             ->setAppointment($appointment)
             ->setStatus($status)
             ->setPriority($priority)
-            ->setCreatedAt(new \DateTime())
             ->setCompleted($status === TaskStatus::COMPLETED);
 
         $this->entityManager->persist($task);
@@ -55,6 +53,11 @@ class TaskService
         if ($status !== null) $task->setStatus($status);
         if ($priority !== null) $task->setPriority($priority);
         if ($completed !== null) $task->setCompleted($completed);
+
+        // Si status COMPLETED => completed=true (optionnel)
+        if ($status === TaskStatus::COMPLETED) {
+            $task->setCompleted(true);
+        }
 
         $this->entityManager->flush();
 

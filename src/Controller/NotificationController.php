@@ -2,8 +2,8 @@
 
 namespace App\Controller;
 
-use App\Entity\Notification;
-use App\Entity\VicidialUser;
+use App\Entity\CRM\CrmUser;
+use App\Entity\CRM\Notification;
 use App\Service\NotificationService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -16,70 +16,85 @@ use Symfony\Component\Serializer\SerializerInterface;
 class NotificationController extends AbstractController
 {
     public function __construct(
-        private NotificationService $notificationService,
-        private SerializerInterface $serializer
+        private readonly NotificationService $notificationService,
+        private readonly SerializerInterface $serializer
     ) {}
 
     /**
-     * Récupère toutes les notifications (pour tous les utilisateurs)
+     * ✅ Admin: récupérer toutes les notifications
      */
     #[Route('', name: 'notifications_list', methods: ['GET'])]
     public function getAllNotifications(): JsonResponse
     {
-        $notifications = $this->notificationService->getAllNotificationsForAdmin(); // Renvoie toutes les notifications
+        $notifications = $this->notificationService->getAllNotificationsForAdmin();
 
-        $data = array_map(fn(Notification $n) => [
-            'id' => $n->getId(),
-            'message' => $n->getMessage(),
-            'created_at' => $n->getCreatedAt()->format('Y-m-d H:i:s'),
-            'is_read' => $n->isRead(),
-            'user' => [
-                'id' => $n->getUser()->getId(),
-                'username' => $n->getUser()->getUser(),
-            ],
-        ], $notifications);
+        $data = array_map(static function (Notification $n): array {
+            $user = $n->getCrmUser();
 
-        return $this->json($data);
+            return [
+                'id' => $n->getId(),
+                'message' => $n->getMessage(),
+                'created_at' => $n->getCreatedAt()?->format('Y-m-d H:i:s'),
+                'is_read' => $n->getIsRead(),
+                'user' => $user ? [
+                    'id' => $user->getId(),
+                    'username' => $user->getUsername(),
+                ] : null,
+            ];
+        }, $notifications);
+
+        return $this->json($data, Response::HTTP_OK);
     }
 
     /**
-     * Crée une nouvelle notification pour un utilisateur
+     * ✅ Créer une notification
      */
     #[Route('/create', name: 'notification_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
-        /** @var VicidialUser $user */
+        /** @var CrmUser|null $user */
         $user = $this->getUser();
-        $data = json_decode($request->getContent(), true);
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non authentifié'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $data = json_decode($request->getContent(), true) ?? [];
+
+        if (empty($data['message'])) {
+            return $this->json(['error' => 'Le champ message est obligatoire'], Response::HTTP_BAD_REQUEST);
+        }
 
         try {
             $notification = $this->notificationService->createNotification(
                 $user,
-                $data['message'],
+                (string) $data['message'],
                 $data['appointment_id'] ?? null
             );
 
             return new JsonResponse(
-                $this->serializer->serialize($notification, 'json', ['groups' => 'notification:read']),
+                $this->serializer->serialize($notification, 'json', ['groups' => ['notification:read']]),
                 Response::HTTP_CREATED,
                 [],
                 true
             );
-        } catch (\Exception $e) {
-            return new JsonResponse(['error' => 'Une erreur est survenue'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        } catch (\Throwable $e) {
+            return $this->json([
+                'error' => 'Une erreur est survenue',
+                'message' => $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     /**
-     * Marque une notification comme lue
+     * ✅ Marquer comme lue
      */
-    #[Route('/{id}/read', name: 'notification_mark_as_read', methods: ['PUT'])]
+    #[Route('/{id}/read', name: 'notification_mark_as_read', methods: ['PUT'], requirements: ['id' => '\d+'])]
     public function markAsRead(Notification $notification): JsonResponse
     {
         $this->notificationService->markAsRead($notification);
 
         return new JsonResponse(
-            $this->serializer->serialize($notification, 'json', ['groups' => 'notification:read']),
+            $this->serializer->serialize($notification, 'json', ['groups' => ['notification:read']]),
             Response::HTTP_OK,
             [],
             true
@@ -87,9 +102,9 @@ class NotificationController extends AbstractController
     }
 
     /**
-     * Supprime une notification
+     * ✅ Supprimer
      */
-    #[Route('/{id}', name: 'notification_delete', methods: ['DELETE'])]
+    #[Route('/{id}', name: 'notification_delete', methods: ['DELETE'], requirements: ['id' => '\d+'])]
     public function delete(Notification $notification): JsonResponse
     {
         $this->notificationService->deleteNotification($notification);
@@ -98,17 +113,21 @@ class NotificationController extends AbstractController
     }
 
     /**
-     * Récupère les notifications non lues d'un utilisateur
+     * ✅ Récupérer les notifications non lues de l'utilisateur connecté
      */
     #[Route('/unread', name: 'notifications_unread', methods: ['GET'])]
     public function getUnreadNotifications(): JsonResponse
     {
-        /** @var VicidialUser $user */
+        /** @var CrmUser|null $user */
         $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non authentifié'], Response::HTTP_UNAUTHORIZED);
+        }
+
         $notifications = $this->notificationService->getUnreadNotifications($user);
 
         return new JsonResponse(
-            $this->serializer->serialize($notifications, 'json', ['groups' => 'notification:read']),
+            $this->serializer->serialize($notifications, 'json', ['groups' => ['notification:read']]),
             Response::HTTP_OK,
             [],
             true
