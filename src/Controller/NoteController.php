@@ -2,8 +2,9 @@
 
 namespace App\Controller;
 
-use App\Entity\Note;
-use App\Entity\Appointment;
+use App\Entity\CRM\Appointment;
+use App\Entity\CRM\CrmUser;
+use App\Entity\CRM\Note;
 use App\Service\NoteService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -11,15 +12,13 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\Serializer\SerializerInterface;
 
 #[Route('/api/notes')]
 class NoteController extends AbstractController
 {
     public function __construct(
-        private NoteService $noteService,
-        private EntityManagerInterface $entityManager,
-        private SerializerInterface $serializer
+        private readonly NoteService $noteService,
+        private readonly EntityManagerInterface $entityManager,
     ) {}
 
     /**
@@ -31,15 +30,19 @@ class NoteController extends AbstractController
         $data = json_decode($request->getContent(), true);
 
         try {
-            /** @var \App\Entity\VicidialUser $user */
+            /** @var CrmUser|null $user */
             $user = $this->getUser();
 
-            if (!$user) {
+            if (!$user instanceof CrmUser) {
                 return $this->json(['error' => 'Utilisateur non authentifié'], Response::HTTP_UNAUTHORIZED);
             }
 
-            $appointment = $this->entityManager->getRepository(Appointment::class)->find($data['appointment_id']);
+            $appointmentId = $data['appointment_id'] ?? null;
+            if (!$appointmentId) {
+                return $this->json(['error' => 'appointment_id est requis'], Response::HTTP_BAD_REQUEST);
+            }
 
+            $appointment = $this->entityManager->getRepository(Appointment::class)->find($appointmentId);
             if (!$appointment) {
                 return $this->json(['error' => 'Rendez-vous introuvable'], Response::HTTP_NOT_FOUND);
             }
@@ -50,9 +53,8 @@ class NoteController extends AbstractController
                 $appointment
             );
 
-            // ✅ Pas besoin de re-sérialiser ici (le service renvoie déjà un tableau)
             return $this->json($note, Response::HTTP_CREATED, [], ['groups' => 'note:read']);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }
     }
@@ -68,7 +70,7 @@ class NoteController extends AbstractController
         try {
             $updatedNote = $this->noteService->updateNote($note, $data['content'] ?? '');
             return $this->json($updatedNote, Response::HTTP_OK, [], ['groups' => 'note:read']);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }
     }
@@ -82,7 +84,7 @@ class NoteController extends AbstractController
         try {
             $this->noteService->deleteNote($note);
             return $this->json(['message' => 'Note supprimée avec succès'], Response::HTTP_NO_CONTENT);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }
     }
@@ -96,7 +98,7 @@ class NoteController extends AbstractController
         try {
             $notes = $this->noteService->getAppointmentNotes($appointment);
             return $this->json($notes, Response::HTTP_OK, [], ['groups' => 'note:read']);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }
     }

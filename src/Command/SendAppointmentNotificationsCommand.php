@@ -2,7 +2,7 @@
 
 namespace App\Command;
 
-use App\Entity\Appointment;
+use App\Entity\CRM\Appointment;
 use App\Service\NotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;

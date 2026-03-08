@@ -1,0 +1,182 @@
+[
+    {
+        "STATUS": "STATUS",
+        "DESCRIPTION": "DESCRIPTION",
+        "CATEGORY": "CATEGORY",
+        "CALLS": "CALLS",
+        "TOTAL TIME": "TOTAL TIME",
+        "AVG TIME": "AVG TIME",
+        "CALLS/HOUR": "CALLS/HOUR",
+        "AGENT TIME": "CALLS/HOUR"
+    },
+    {
+        "STATUS": "AA",
+        "DESCRIPTION": "R\u00e9pondeur Auto",
+        "CATEGORY": "UNDEFINED",
+        "CALLS": "77910",
+        "TOTAL TIME": "1:18:11",
+        "AVG TIME": "0:00",
+        "CALLS/HOUR": "1838.33",
+        "AGENT TIME": "400.62"
+    },
+    {
+        "STATUS": "AB",
+        "DESCRIPTION": "Occup\u00e9 Auto",
+        "CATEGORY": "UNDEFINED",
+        "CALLS": "744",
+        "TOTAL TIME": "0:00",
+        "AVG TIME": "0:00",
+        "CALLS/HOUR": "17.56",
+        "AGENT TIME": "3.83"
+    },
+    {
+        "STATUS": "B",
+        "DESCRIPTION": "Occup\u00e9",
+        "CATEGORY": "UNDEFINED",
+        "CALLS": "1",
+        "TOTAL TIME": "0:42",
+        "AVG TIME": "0:42",
+        "CALLS/HOUR": "0.02",
+        "AGENT TIME": "0.01"
+    },
+    {
+        "STATUS": "DNC",
+        "DESCRIPTION": "A Ne Jamais rappeler",
+        "CATEGORY": "UNDEFINED",
+        "CALLS": "22",
+        "TOTAL TIME": "10:59",
+        "AVG TIME": "0:30",
+        "CALLS/HOUR": "0.52",
+        "AGENT TIME": "0.11"
+    },
+    {
+        "STATUS": "DROP",
+        "DESCRIPTION": "Aucun Agent Disponib",
+        "CATEGORY": "UNDEFINED",
+        "CALLS": "93",
+        "TOTAL TIME": "15:54",
+        "AVG TIME": "0:10",
+        "CALLS/HOUR": "2.19",
+        "AGENT TIME": "0.48"
+    },
+    {
+        "STATUS": "ENF",
+        "DESCRIPTION": "ENFANT",
+        "CATEGORY": "UNDEFINED",
+        "CALLS": "11",
+        "TOTAL TIME": "3:02",
+        "AVG TIME": "0:17",
+        "CALLS/HOUR": "0.26",
+        "AGENT TIME": "0.06"
+    },
+    {
+        "STATUS": "ETRG",
+        "DESCRIPTION": "ETRANGER",
+        "CATEGORY": "UNDEFINED",
+        "CALLS": "4",
+        "TOTAL TIME": "1:13",
+        "AVG TIME": "0:18",
+        "CALLS/HOUR": "0.09",
+        "AGENT TIME": "0.02"
+    },
+    {
+        "STATUS": "HCL",
+        "DESCRIPTION": "HC LOCATAIRE",
+        "CATEGORY": "UNDEFINED",
+        "CALLS": "243",
+        "TOTAL TIME": "1:42:40",
+        "AVG TIME": "0:25",
+        "CALLS/HOUR": "5.73",
+        "AGENT TIME": "1.25"
+    },
+    {
+        "STATUS": "HCLOC",
+        "DESCRIPTION": "HORS CIBLE LOCATAIRE",
+        "CATEGORY": "UNDEFINED",
+        "CALLS": "133",
+        "TOTAL TIME": "44:21",
+        "AVG TIME": "0:20",
+        "CALLS/HOUR": "3.14",
+        "AGENT TIME": "0.68"
+    },
+    {
+        "STATUS": "HCS",
+        "DESCRIPTION": "HC SOCIETE",
+        "CATEGORY": "UNDEFINED",
+        "CALLS": "164",
+        "TOTAL TIME": "1:04:21",
+        "AVG TIME": "0:24",
+        "CALLS/HOUR": "3.87",
+        "AGENT TIME": "0.84"
+    },
+    {
+        "STATUS": "INCALL",
+        "DESCRIPTION": "Fiche en Appel",
+        "CATEGORY": "UNDEFINED",
+        "CALLS": "9",
+        "TOTAL TIME": "5:37",
+        "AVG TIME": "0:37",
+        "CALLS/HOUR": "0.21",
+        "AGENT TIME": "0.05"
+    },
+    {
+        "STATUS": "N1",
+        "DESCRIPTION": "Pas de r\u00e9ponse",
+        "CATEGORY": "UNDEFINED",
+        "CALLS": "357",
+        "TOTAL TIME": "50:14",
+        "AVG TIME": "0:08",
+        "CALLS/HOUR": "8.42",
+        "AGENT TIME": "1.84"
+    },
+    {
+        "STATUS": "NA",
+        "DESCRIPTION": "Pas de r\u00e9ponse AutoD",
+        "CATEGORY": "UNDEFINED",
+        "CALLS": "56981",
+        "TOTAL TIME": "0:00",
+        "AVG TIME": "0:00",
+        "CALLS/HOUR": "1344.50",
+        "AGENT TIME": "293.00"
+    },
+    {
+        "STATUS": "NI",
+        "DESCRIPTION": "Non Int\u00e9r\u00e9ss\u00e9",
+        "CATEGORY": "UNDEFINED",
+        "CALLS": "4570",
+        "TOTAL TIME": "25:21:29",
+        "AVG TIME": "0:20",
+        "CALLS/HOUR": "107.83",
+        "AGENT TIME": "23.50"
+    },
+    {
+        "STATUS": "REP",
+        "DESCRIPTION": "R\u00e9pondeur",
+        "CATEGORY": "UNDEFINED",
+        "CALLS": "321",
+        "TOTAL TIME": "30:59",
+        "AVG TIME": "0:06",
+        "CALLS/HOUR": "7.57",
+        "AGENT TIME": "1.65"
+    },
+    {
+        "STATUS": "SALE",
+        "DESCRIPTION": "RENDEZ VOUS",
+        "CATEGORY": "UNDEFINED",
+        "CALLS": "11",
+        "TOTAL TIME": "1:06:56",
+        "AVG TIME": "6:05",
+        "CALLS/HOUR": "0.26",
+        "AGENT TIME": "0.06"
+    },
+    {
+        "STATUS": "TLLA",
+        "DESCRIPTION": "TEL LAISSE",
+        "CATEGORY": "UNDEFINED",
+        "CALLS": "367",
+        "TOTAL TIME": "9:05:12",
+        "AVG TIME": "1:29",
+        "CALLS/HOUR": "8.66",
+        "AGENT TIME": "1.89"
+    }
+]

@@ -4,6 +4,10 @@ parameters:
     vicidial.password: 'vicidial1234'
     vicidial.source: 'test'
 
+    # ✅ MOCK MODE
+    data_mode: '%env(string:DATA_MODE)%'
+    mock_agent_performance_csv: '%env(string:MOCK_AGENT_PERFORMANCE_CSV)%'
+
 services:
     _defaults:
         autowire: true
@@ -57,7 +61,6 @@ services:
             $apiPass: '%vicidial.password%'
             $source: '%vicidial.source%'
 
-    # DB Vicidial (corrigé)
     App\Service\VicidialDbService:
         arguments:
             $vicidialConnection: '@doctrine.dbal.vicidial_connection'
@@ -92,7 +95,6 @@ services:
     App\Service\Statuses\StatusesService:
         arguments:
             $vicidialConnection: '@doctrine.dbal.vicidial_connection'
-            
 
     # =========================
     # REPOSITORY CRM USER
@@ -101,3 +103,14 @@ services:
         factory: ['@doctrine.orm.crm_entity_manager', getRepository]
         arguments:
             - App\Entity\CRM\CrmUser
+
+    # =========================
+    # ✅ MOCK PROVIDERS (Agents)
+    # =========================
+    App\Service\Agent\MockAgentPerformanceProvider:
+        arguments:
+            $csvPath: '%kernel.project_dir%/%mock_agent_performance_csv%'
+
+    App\Service\Agent\AgentPerformanceProvider:
+        arguments:
+            $dataMode: '%data_mode%'
