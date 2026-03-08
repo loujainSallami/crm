@@ -27,3 +27,7 @@
 ###> lexik/jwt-authentication-bundle ###
 /config/jwt/*.pem
 ###< lexik/jwt-authentication-bundle ###
+venv/
+etl_python/venv/
+__pycache__/
+*.pyc
