@@ -2,8 +2,7 @@
 
 namespace App\Repository;
 
-use App\Entity\Notification;
-use App\Entity\CrmUser ;
+use App\Entity\CRM\Notification;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -15,30 +14,30 @@ class NotificationRepository extends ServiceEntityRepository
     }
 
     /**
-     * Récupère toutes les notifications d'un utilisateur
+     * Récupère toutes les notifications d'un utilisateur Vicidial
      */
-    public function findByUser (CrmUser  $user): array
+    public function findByVicidialUser(string $vicidialUser): array
     {
         return $this->createQueryBuilder('n')
-            ->andWhere('n.user = :user')
-            ->setParameter('user', $user)
+            ->andWhere('n.vicidialUser = :vicidialUser')
+            ->setParameter('vicidialUser', $vicidialUser)
             ->orderBy('n.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
     }
 
     /**
-     * Récupère les notifications non lues d'un utilisateur
+     * Récupère les notifications non lues d'un utilisateur Vicidial
      */
-    public function findUnreadByUser (CrmUser  $user): array
+    public function findUnreadByVicidialUser(string $vicidialUser): array
     {
         return $this->createQueryBuilder('n')
-            ->andWhere('n.user = :user')
-            ->andWhere('n.isRead = false')
-            ->setParameter('user', $user)
+            ->andWhere('n.vicidialUser = :vicidialUser')
+            ->andWhere('n.isRead = :isRead')
+            ->setParameter('vicidialUser', $vicidialUser)
+            ->setParameter('isRead', false)
             ->orderBy('n.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
     }
-    
 }

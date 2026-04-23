@@ -2,7 +2,6 @@
 
 namespace App\Service;
 
-use App\Entity\CRM\CrmUser;
 use App\Entity\CRM\Task;
 use App\Entity\CRM\Appointment;
 use App\Enum\TaskStatus;
@@ -11,13 +10,16 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class TaskService
 {
-    public function __construct(private EntityManagerInterface $entityManager) {}
+    public function __construct(
+        private EntityManagerInterface $entityManager
+    ) {
+    }
 
     public function createTask(
         string $title,
         ?string $description,
         ?\DateTimeInterface $dueDate,
-        CrmUser $user,
+        ?string $vicidialUser,
         Appointment $appointment,
         TaskStatus $status = TaskStatus::PENDING,
         TaskPriority $priority = TaskPriority::MEDIUM
@@ -26,7 +28,7 @@ class TaskService
             ->setTitle($title)
             ->setDescription($description)
             ->setDueDate($dueDate)
-            ->setUser($user)
+            ->setVicidialUser($vicidialUser)
             ->setAppointment($appointment)
             ->setStatus($status)
             ->setPriority($priority)
@@ -45,16 +47,37 @@ class TaskService
         ?\DateTimeInterface $dueDate = null,
         ?TaskStatus $status = null,
         ?TaskPriority $priority = null,
-        ?bool $completed = null
+        ?bool $completed = null,
+        ?string $vicidialUser = null
     ): Task {
-        if ($title !== null) $task->setTitle($title);
-        if ($description !== null) $task->setDescription($description);
-        if ($dueDate !== null) $task->setDueDate($dueDate);
-        if ($status !== null) $task->setStatus($status);
-        if ($priority !== null) $task->setPriority($priority);
-        if ($completed !== null) $task->setCompleted($completed);
+        if ($title !== null) {
+            $task->setTitle($title);
+        }
 
-        // Si status COMPLETED => completed=true (optionnel)
+        if ($description !== null) {
+            $task->setDescription($description);
+        }
+
+        if ($dueDate !== null) {
+            $task->setDueDate($dueDate);
+        }
+
+        if ($status !== null) {
+            $task->setStatus($status);
+        }
+
+        if ($priority !== null) {
+            $task->setPriority($priority);
+        }
+
+        if ($completed !== null) {
+            $task->setCompleted($completed);
+        }
+
+        if ($vicidialUser !== null) {
+            $task->setVicidialUser($vicidialUser);
+        }
+
         if ($status === TaskStatus::COMPLETED) {
             $task->setCompleted(true);
         }
@@ -70,11 +93,11 @@ class TaskService
         $this->entityManager->flush();
     }
 
-    public function getUserTasks(CrmUser $user): array
+    public function getUserTasks(string $vicidialUser): array
     {
         return $this->entityManager
             ->getRepository(Task::class)
-            ->findBy(['user' => $user], ['createdAt' => 'DESC']);
+            ->findBy(['vicidialUser' => $vicidialUser], ['createdAt' => 'DESC']);
     }
 
     public function getTasksByAppointment(Appointment $appointment): array
@@ -86,6 +109,8 @@ class TaskService
 
     public function getAllTasks(): array
     {
-        return $this->entityManager->getRepository(Task::class)->findAll();
+        return $this->entityManager
+            ->getRepository(Task::class)
+            ->findAll();
     }
 }

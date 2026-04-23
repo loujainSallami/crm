@@ -19,8 +19,8 @@ class VicidialApiController extends AbstractController
         return new JsonResponse([
             'success' => false,
             'error' => 'VICIDIAL_UNREACHABLE',
-            'message' => 'Le serveur Vicidial est indisponible (timeout / réseau / firewall).',
-            'details' => $e->getMessage(), // enlève en prod si tu veux
+            'message' => 'Le serveur Vicidial est indisponible',
+            'details' => $e->getMessage(),
         ], JsonResponse::HTTP_SERVICE_UNAVAILABLE);
     }
 
@@ -46,7 +46,11 @@ class VicidialApiController extends AbstractController
     {
         try {
             $campaigns = $this->vicidialApiService->getCampaigns();
-            return new JsonResponse(['success' => true, 'data' => $campaigns]);
+
+            return new JsonResponse([
+                'success' => true,
+                'data' => $campaigns
+            ]);
         } catch (\Throwable $e) {
             return $this->vicidialUnavailable($e);
         }
@@ -82,7 +86,27 @@ class VicidialApiController extends AbstractController
     {
         try {
             $users = $this->vicidialApiService->getUsers();
-            return new JsonResponse(['success' => true, 'data' => $users]);
+
+            return new JsonResponse([
+                'success' => true,
+                'data' => $users
+            ]);
+        } catch (\Throwable $e) {
+            return $this->vicidialUnavailable($e);
+        }
+    }
+
+    // ✅ NOUVELLE ROUTE LEADS
+    #[Route('/api/vicidial/getLeads', name: 'get_leads', methods: ['GET'])]
+    public function getLeads(): JsonResponse
+    {
+        try {
+            $leads = $this->vicidialApiService->getLeads();
+
+            return new JsonResponse([
+                'success' => true,
+                'data' => $leads
+            ]);
         } catch (\Throwable $e) {
             return $this->vicidialUnavailable($e);
         }

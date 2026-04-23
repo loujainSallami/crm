@@ -27,18 +27,19 @@ class Appointment
 
     #[ORM\Column(length: 255)]
     #[Groups(['appointment:read'])]
-    private ?string $description = null;
+    private ?string $description = '';
 
-    // ✅ CRM user (Postgres) OK
-    #[ORM\ManyToOne(inversedBy: 'appointments')]
-    #[ORM\JoinColumn(name: "crm_user_id", referencedColumnName: "user_id", nullable: false)]
+    #[ORM\Column(name: "vicidial_user", type: "string", length: 50, nullable: false)]
     #[Groups(['appointment:read'])]
-    private ?CrmUser $crmUser = null;
+    private ?string $vicidialUser = null;
 
-    // ✅ Lead Vicidial (MariaDB) => on stocke seulement l'ID (pas de relation Doctrine)
     #[ORM\Column(name: "vicidial_lead_id", type: "integer", nullable: true)]
     #[Groups(['appointment:read'])]
     private ?int $vicidialLeadId = null;
+
+    #[ORM\Column(name: "vicidial_campaign_id", type: "string", length: 20, nullable: true)]
+    #[Groups(['appointment:read'])]
+    private ?string $vicidialCampaignId = null;
 
     #[ORM\OneToMany(targetEntity: Note::class, mappedBy: 'appointment')]
     #[Groups(['appointment:read'])]
@@ -58,65 +59,146 @@ class Appointment
         $this->tasks = new ArrayCollection();
     }
 
-    public function getId(): ?int { return $this->id; }
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
 
-    public function getStartTime(): ?\DateTimeInterface { return $this->startTime; }
-    public function setStartTime(\DateTimeInterface $startTime): static { $this->startTime = $startTime; return $this; }
+    public function getStartTime(): ?\DateTimeInterface
+    {
+        return $this->startTime;
+    }
 
-    public function getEndTime(): ?\DateTimeInterface { return $this->endTime; }
-    public function setEndTime(\DateTimeInterface $endTime): static { $this->endTime = $endTime; return $this; }
+    public function setStartTime(\DateTimeInterface $startTime): static
+    {
+        $this->startTime = $startTime;
+        return $this;
+    }
 
-    public function getDescription(): ?string { return $this->description; }
-    public function setDescription(string $description): static { $this->description = $description; return $this; }
+    public function getEndTime(): ?\DateTimeInterface
+    {
+        return $this->endTime;
+    }
 
-    public function getCrmUser(): ?CrmUser { return $this->crmUser; }
-    public function setCrmUser(?CrmUser $crmUser): static { $this->crmUser = $crmUser; return $this; }
+    public function setEndTime(\DateTimeInterface $endTime): static
+    {
+        $this->endTime = $endTime;
+        return $this;
+    }
 
-    public function getVicidialLeadId(): ?int { return $this->vicidialLeadId; }
-    public function setVicidialLeadId(?int $vicidialLeadId): static { $this->vicidialLeadId = $vicidialLeadId; return $this; }
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
 
-    public function getNotes(): Collection { return $this->notes; }
-    public function addNote(Note $note): static {
+    public function setDescription(string $description): static
+    {
+        $this->description = $description;
+        return $this;
+    }
+
+    public function getVicidialUser(): ?string
+    {
+        return $this->vicidialUser;
+    }
+
+    public function setVicidialUser(?string $vicidialUser): static
+    {
+        $this->vicidialUser = $vicidialUser;
+        return $this;
+    }
+
+    public function getVicidialLeadId(): ?int
+    {
+        return $this->vicidialLeadId;
+    }
+
+    public function setVicidialLeadId(?int $vicidialLeadId): static
+    {
+        $this->vicidialLeadId = $vicidialLeadId;
+        return $this;
+    }
+
+    public function getVicidialCampaignId(): ?string
+    {
+        return $this->vicidialCampaignId;
+    }
+
+    public function setVicidialCampaignId(?string $vicidialCampaignId): static
+    {
+        $this->vicidialCampaignId = $vicidialCampaignId;
+        return $this;
+    }
+
+    public function getNotes(): Collection
+    {
+        return $this->notes;
+    }
+
+    public function addNote(Note $note): static
+    {
         if (!$this->notes->contains($note)) {
             $this->notes->add($note);
             $note->setAppointment($this);
         }
-        return $this;
-    }
-    public function removeNote(Note $note): static {
-        if ($this->notes->removeElement($note) && $note->getAppointment() === $this) {
-            $note->setAppointment(null);
-        }
+
         return $this;
     }
 
-    public function getNotifications(): Collection { return $this->notifications; }
-    public function addNotification(Notification $notification): static {
+    public function removeNote(Note $note): static
+    {
+        if ($this->notes->removeElement($note) && $note->getAppointment() === $this) {
+            $note->setAppointment(null);
+        }
+
+        return $this;
+    }
+
+    public function getNotifications(): Collection
+    {
+        return $this->notifications;
+    }
+
+    public function addNotification(Notification $notification): static
+    {
         if (!$this->notifications->contains($notification)) {
             $this->notifications->add($notification);
             $notification->setAppointment($this);
         }
-        return $this;
-    }
-    public function removeNotification(Notification $notification): static {
-        if ($this->notifications->removeElement($notification) && $notification->getAppointment() === $this) {
-            $notification->setAppointment(null);
-        }
+
         return $this;
     }
 
-    public function getTasks(): Collection { return $this->tasks; }
-    public function addTask(Task $task): static {
+    public function removeNotification(Notification $notification): static
+    {
+        if ($this->notifications->removeElement($notification) && $notification->getAppointment() === $this) {
+            $notification->setAppointment(null);
+        }
+
+        return $this;
+    }
+
+    public function getTasks(): Collection
+    {
+        return $this->tasks;
+    }
+
+    public function addTask(Task $task): static
+    {
         if (!$this->tasks->contains($task)) {
             $this->tasks->add($task);
             $task->setAppointment($this);
         }
+
         return $this;
     }
-    public function removeTask(Task $task): static {
+
+    public function removeTask(Task $task): static
+    {
         if ($this->tasks->removeElement($task) && $task->getAppointment() === $this) {
             $task->setAppointment(null);
         }
+
         return $this;
     }
 }

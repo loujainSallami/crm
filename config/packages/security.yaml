@@ -1,27 +1,28 @@
 security:
     password_hashers:
+        App\Security\VicidialUser:
+            algorithm: plaintext
+
         App\Entity\CRM\CrmUser:
             id: App\Security\SHA1PasswordHasher
 
     providers:
-        app_user_provider:
-            entity:
-                class: App\Entity\CRM\CrmUser
-                property: username
+        vicidial_user_provider:
+            id: App\Security\VicidialUserProvider
 
     firewalls:
         dev:
-            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            pattern: ^/(_(profiler|wdt)|css|images|js)$
             security: false
 
         login:
-            pattern: ^/api/login
+            pattern: ^/api/login$
             stateless: true
-            provider: app_user_provider
+            provider: vicidial_user_provider
             json_login:
-                check_path: /api/login_check
+                check_path: /api/login
                 username_path: username
-                password_path: pass
+                password_path: password
                 success_handler: lexik_jwt_authentication.handler.authentication_success
                 failure_handler: lexik_jwt_authentication.handler.authentication_failure
 
@@ -29,22 +30,35 @@ security:
             pattern: ^/api
             stateless: true
             jwt: ~
-            refresh_jwt:
-                check_path: /api/token/refresh
             entry_point: jwt
 
     access_control:
-        - { path: ^/api/login, roles: PUBLIC_ACCESS }
-        - { path: ^/api/token/refresh, roles: PUBLIC_ACCESS }
-        - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
-        - { path: ^/api/agents/performance, roles: PUBLIC_ACCESS }
-        
+        - { path: ^/api/login$, roles: PUBLIC_ACCESS }
 
-when@test:
-    security:
-        password_hashers:
-            Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
-                algorithm: auto
-                cost: 4
-                time_cost: 3
-                memory_cost: 10
+        # Dashboard
+        - { path: ^/api/dashboard/overview-summary, roles: PUBLIC_ACCESS }
+        - { path: ^/api/dashboard/status$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/dashboard/calls-per-day, roles: PUBLIC_ACCESS }
+
+        # Agent Reports
+        - { path: ^/api/agent-reports/summary, roles: PUBLIC_ACCESS }
+        - { path: ^/api/agent-reports/calls-by-agent, roles: PUBLIC_ACCESS }
+        - { path: ^/api/agent-reports/live-status, roles: PUBLIC_ACCESS }
+
+        # Performance
+        - { path: ^/api/agent-performance, roles: PUBLIC_ACCESS }
+
+        # Live
+        - { path: ^/api/live/summary, roles: PUBLIC_ACCESS }
+
+        # Campaign
+        - { path: ^/api/campaign-analytics, roles: PUBLIC_ACCESS }
+
+        # Recordings (optionnel pour maintenant)
+        - { path: ^/api/recordings, roles: PUBLIC_ACCESS }
+
+        # Token
+        - { path: ^/api/token/refresh$, roles: PUBLIC_ACCESS }
+
+        # Default secure
+        - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }

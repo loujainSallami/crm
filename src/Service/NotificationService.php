@@ -2,7 +2,6 @@
 
 namespace App\Service;
 
-use App\Entity\CRM\CrmUser;
 use App\Entity\CRM\Notification;
 use App\Entity\CRM\Appointment;
 use App\Repository\NotificationRepository;
@@ -13,24 +12,25 @@ class NotificationService
     public function __construct(
         private readonly NotificationRepository $notificationRepository,
         private readonly EntityManagerInterface $entityManager
-    ) {}
+    ) {
+    }
 
-    public function getAllNotifications(CrmUser $user): array
+    public function getAllNotifications(string $vicidialUser): array
     {
         return $this->notificationRepository->findBy(
-            ['crmUser' => $user],
+            ['vicidialUser' => $vicidialUser],
             ['createdAt' => 'DESC']
         );
     }
 
     public function createNotification(
-        CrmUser $user,
+        ?string $vicidialUser,
         string $message,
         ?int $appointmentId = null
     ): Notification {
         $notification = new Notification();
         $notification->setMessage($message);
-        $notification->setCrmUser($user);
+        $notification->setVicidialUser($vicidialUser);
         $notification->setCreatedAt(new \DateTimeImmutable());
         $notification->setIsRead(false);
 
@@ -62,10 +62,10 @@ class NotificationService
         $this->entityManager->flush();
     }
 
-    public function getUnreadNotifications(CrmUser $user): array
+    public function getUnreadNotifications(string $vicidialUser): array
     {
         return $this->notificationRepository->findBy(
-            ['crmUser' => $user, 'isRead' => false],
+            ['vicidialUser' => $vicidialUser, 'isRead' => false],
             ['createdAt' => 'DESC']
         );
     }

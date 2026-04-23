@@ -2,10 +2,9 @@
 
 namespace App\Repository;
 
-use App\Entity\CrmUser;
-use App\Entity\Task;
-use App\Entity\VicidialUser;
-use App\Entity\Appointment;
+use App\Entity\CRM\Appointment;
+use App\Entity\CRM\Task;
+use App\Enum\TaskStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -24,36 +23,29 @@ class TaskRepository extends ServiceEntityRepository
         parent::__construct($registry, Task::class);
     }
 
-    /**
-     * Sauvegarde une tâche
-     */
     public function save(Task $task, bool $flush = true): void
     {
         $this->_em->persist($task);
+
         if ($flush) {
             $this->_em->flush();
         }
     }
 
-    /**
-     * Supprime une tâche
-     */
     public function remove(Task $task, bool $flush = true): void
     {
         $this->_em->remove($task);
+
         if ($flush) {
             $this->_em->flush();
         }
     }
 
-    /**
-     * 🔹 Récupère les tâches d'un utilisateur (avec pagination)
-     */
-    public function findByUser(CrmUser $user, int $page = 1, int $limit = 10): array
+    public function findByVicidialUser(string $vicidialUser, int $page = 1, int $limit = 10): array
     {
         return $this->createQueryBuilder('t')
-            ->andWhere('t.user = :user')
-            ->setParameter('user', $user)
+            ->andWhere('t.vicidialUser = :vicidialUser')
+            ->setParameter('vicidialUser', $vicidialUser)
             ->orderBy('t.dueDate', 'ASC')
             ->setFirstResult(($page - 1) * $limit)
             ->setMaxResults($limit)
@@ -61,9 +53,6 @@ class TaskRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    /**
-     * 🔹 Récupère les tâches liées à un rendez-vous spécifique
-     */
     public function findByAppointment(Appointment $appointment): array
     {
         return $this->createQueryBuilder('t')
@@ -74,48 +63,39 @@ class TaskRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    /**
-     * 🔹 Récupère les tâches à venir (non accomplies)
-     */
-    public function findUpcomingTasks(CrmUser $user, int $limit = 5): array
+    public function findUpcomingTasks(string $vicidialUser, int $limit = 5): array
     {
         return $this->createQueryBuilder('t')
-            ->andWhere('t.user = :user')
+            ->andWhere('t.vicidialUser = :vicidialUser')
             ->andWhere('(t.dueDate >= :now OR t.dueDate IS NULL)')
-            ->andWhere('t.completed = 0')
-            ->setParameter('user', $user)
-            ->setParameter('now', new \DateTime())
+            ->andWhere('t.completed = false')
+            ->setParameter('vicidialUser', $vicidialUser)
+            ->setParameter('now', new \DateTimeImmutable())
             ->orderBy('t.dueDate', 'ASC')
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
     }
 
-    /**
-     * 🔹 Compte les tâches en retard (non terminées)
-     */
-    public function countOverdueTasks(CrmUser $user): int
+    public function countOverdueTasks(string $vicidialUser): int
     {
         return (int) $this->createQueryBuilder('t')
             ->select('COUNT(t.id)')
-            ->andWhere('t.user = :user')
-            ->andWhere('t.completed = 0')
+            ->andWhere('t.vicidialUser = :vicidialUser')
+            ->andWhere('t.completed = false')
             ->andWhere('t.dueDate < :now')
-            ->setParameter('user', $user)
-            ->setParameter('now', new \DateTime())
+            ->setParameter('vicidialUser', $vicidialUser)
+            ->setParameter('now', new \DateTimeImmutable())
             ->getQuery()
             ->getSingleScalarResult();
     }
 
-    /**
-     * 🔹 Filtrer par statut (optionnel)
-     */
-    public function findByStatus(CrmUser $user, string $status): array
+    public function findByStatus(string $vicidialUser, TaskStatus $status): array
     {
         return $this->createQueryBuilder('t')
-            ->andWhere('t.user = :user')
+            ->andWhere('t.vicidialUser = :vicidialUser')
             ->andWhere('t.status = :status')
-            ->setParameter('user', $user)
+            ->setParameter('vicidialUser', $vicidialUser)
             ->setParameter('status', $status)
             ->orderBy('t.dueDate', 'ASC')
             ->getQuery()

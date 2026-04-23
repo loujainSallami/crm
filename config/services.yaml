@@ -1,10 +1,14 @@
 parameters:
-    vicidial.api_url: 'http://localhost/vicidial/non_agent_api.php'
+    vicidial.api_url: 'http://localhost:8080/vicidial/non_agent_api.php'
     vicidial.username: '6666'
     vicidial.password: 'vicidial1234'
     vicidial.source: 'test'
 
-    # ✅ MOCK MODE
+    vicidial.agent_api_url: 'http://localhost:8080/agc/api.php'
+    vicidial.agent_username: 'api_crm'
+    vicidial.agent_password: 'vicidial123456'
+    vicidial.agent_source: 'test'
+
     data_mode: '%env(string:DATA_MODE)%'
     mock_agent_performance_csv: '%env(string:MOCK_AGENT_PERFORMANCE_CSV)%'
 
@@ -14,32 +18,31 @@ services:
         autoconfigure: true
         public: false
         bind:
-            # Connexions DBAL
             Doctrine\DBAL\Connection $crmConnection: '@doctrine.dbal.default_connection'
             Doctrine\DBAL\Connection $vicidialConnection: '@doctrine.dbal.vicidial_connection'
+            Doctrine\DBAL\Connection $datamartConnection: '@doctrine.dbal.Datamart_connection'
 
-    # Auto-enregistrement App\
     App\:
         resource: '../src/'
         exclude:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
             - '../src/Kernel.php'
+            - '../src/Security/VicidialUser.php'
 
-    # Controllers
     App\Controller\:
         resource: '../src/Controller/'
         tags: ['controller.service_arguments']
 
-    # =========================
-    # USERS (CRM DB)
-    # =========================
     App\Service\Users\UserService:
         arguments:
-            $connection: '@doctrine.dbal.default_connection'
+            $connection: '@doctrine.dbal.vicidial_connection'
             $logger: '@logger'
 
-    App\Service\Users\Group\GroupService: ~
+    App\Service\Users\Group\GroupService:
+        arguments:
+            $connection: '@doctrine.dbal.vicidial_connection'
+            $logger: '@logger'
 
     App\Service\Users\Phone\PhoneService:
         arguments:
@@ -50,9 +53,6 @@ services:
             $apiPass: '%vicidial.password%'
             $source: '%vicidial.source%'
 
-    # =========================
-    # VICIDIAL
-    # =========================
     App\Service\VicidialApiService:
         arguments:
             $client: '@http_client'
@@ -61,26 +61,37 @@ services:
             $apiPass: '%vicidial.password%'
             $source: '%vicidial.source%'
 
+    App\Service\VicidialAgentApiService:
+        arguments:
+            $client: '@http_client'
+            $vicidialConnection: '@doctrine.dbal.vicidial_connection'
+            $agentApiUrl: '%vicidial.agent_api_url%'
+            $apiUser: '%vicidial.agent_username%'
+            $apiPass: '%vicidial.agent_password%'
+            $source: '%vicidial.agent_source%'
+
+    App\Service\Agent\VicidialAgentLoginService:
+        arguments:
+            $vicidialConnection: '@doctrine.dbal.vicidial_connection'
+            $httpClient: '@http_client'
+            $logger: '@logger'
+            $vicidialApiUrl: '%vicidial.agent_api_url%'
+            $vicidialApiUser: '%vicidial.agent_username%'
+            $vicidialApiPass: '%vicidial.agent_password%'
+
     App\Service\VicidialDbService:
         arguments:
             $vicidialConnection: '@doctrine.dbal.vicidial_connection'
 
-    # =========================
-    # CAMPAIGNS
-    # =========================
     App\Service\Campaigns\CampaignService:
         arguments:
             $client: '@http_client'
-            $connection: '@doctrine.dbal.default_connection'
+            $connection: '@doctrine.dbal.vicidial_connection'
             $apiUrl: '%vicidial.api_url%'
             $apiUser: '%vicidial.username%'
             $apiPass: '%vicidial.password%'
             $source: '%vicidial.source%'
-            $entityManager: '@doctrine.orm.crm_entity_manager'
 
-    # =========================
-    # LISTS
-    # =========================
     App\Service\Lists\ListService:
         arguments:
             $client: '@http_client'
@@ -88,25 +99,17 @@ services:
             $apiUser: '%vicidial.username%'
             $apiPass: '%vicidial.password%'
             $source: '%vicidial.source%'
+            $connection: '@doctrine.dbal.vicidial_connection'
 
-    # =========================
-    # STATUSES (Vicidial DB)
-    # =========================
     App\Service\Statuses\StatusesService:
         arguments:
             $vicidialConnection: '@doctrine.dbal.vicidial_connection'
 
-    # =========================
-    # REPOSITORY CRM USER
-    # =========================
     App\Repository\VicidialUserRepository:
         factory: ['@doctrine.orm.crm_entity_manager', getRepository]
         arguments:
             - App\Entity\CRM\CrmUser
 
-    # =========================
-    # ✅ MOCK PROVIDERS (Agents)
-    # =========================
     App\Service\Agent\MockAgentPerformanceProvider:
         arguments:
             $csvPath: '%kernel.project_dir%/%mock_agent_performance_csv%'
@@ -114,3 +117,7 @@ services:
     App\Service\Agent\AgentPerformanceProvider:
         arguments:
             $dataMode: '%data_mode%'
+
+    App\Security\VicidialUserProvider:
+        arguments:
+            $vicidialConnection: '@doctrine.dbal.vicidial_connection'

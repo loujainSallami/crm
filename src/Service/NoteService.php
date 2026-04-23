@@ -3,7 +3,6 @@
 namespace App\Service;
 
 use App\Entity\CRM\Appointment;
-use App\Entity\CRM\CrmUser;
 use App\Entity\CRM\Note;
 use App\Repository\NoteRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -24,11 +23,11 @@ class NoteService
     /**
      * Crée et persiste une nouvelle note
      */
-    public function createNote(string $content, CrmUser $user, Appointment $appointment): array
+    public function createNote(string $content, ?string $vicidialUser, Appointment $appointment): array
     {
         $note = new Note();
         $note->setContent($content)
-             ->setCrmUser($user)              // ✅ IMPORTANT : setCrmUser (pas setUser)
+             ->setVicidialUser($vicidialUser)
              ->setAppointment($appointment)
              ->setCreatedAt(new \DateTimeImmutable());
 
@@ -64,24 +63,23 @@ class NoteService
     }
 
     /**
-     * Récupère les notes d'un utilisateur
+     * Récupère les notes d'un utilisateur Vicidial
      */
-    public function getUserNotes(CrmUser $user, ?int $limit = null): array
+    public function getUserNotes(string $vicidialUser, ?int $limit = null): array
     {
-        $notes = $this->noteRepository->findByUser($user, $limit);
+        $notes = $this->noteRepository->findByVicidialUser($vicidialUser, $limit);
         return $this->serializeCollection($notes);
     }
 
     /**
-     * ✅ Récupère les notes d'un rendez-vous (CRM Appointment)
+     * Récupère les notes d'un rendez-vous
      */
     public function getAppointmentNotes(Appointment $appointment): array
     {
-        // si ton repo attend un ID :
-        $notes = $this->noteRepository->findByAppointment($appointment->getId());
-
-        // OU si ton repo attend l'objet Appointment, utilise plutôt :
-        // $notes = $this->noteRepository->findBy(['appointment' => $appointment], ['createdAt' => 'DESC']);
+        $notes = $this->noteRepository->findBy(
+            ['appointment' => $appointment],
+            ['createdAt' => 'DESC']
+        );
 
         return $this->serializeCollection($notes);
     }
@@ -112,28 +110,29 @@ class NoteService
         return $this->serialize($note);
     }
 
-    public function getImportantNotes(CrmUser $user): array
+    public function getImportantNotes(string $vicidialUser): array
     {
         $notes = $this->noteRepository->findBy(
-            ['crmUser' => $user, 'isImportant' => true], // ✅ crmUser (pas user)
+            ['vicidialUser' => $vicidialUser, 'isImportant' => true],
             ['createdAt' => 'DESC']
         );
 
         return $this->serializeCollection($notes);
     }
 
-    public function getNotesStats(?CrmUser $user = null): array
+    public function getNotesStats(?string $vicidialUser = null): array
     {
         return [
-            'total' => $this->noteRepository->countUserNotes($user),
-            'important' => $this->noteRepository->countImportantNotes($user),
-            'today' => $this->noteRepository->countTodayNotes($user),
+            'total' => $this->noteRepository->countUserNotes($vicidialUser),
+            'important' => $this->noteRepository->countImportantNotes($vicidialUser),
+            'today' => $this->noteRepository->countTodayNotes($vicidialUser),
         ];
     }
 
     private function validate(Note $note): void
     {
         $errors = $this->validator->validate($note);
+
         if (count($errors) > 0) {
             throw new BadRequestHttpException((string) $errors);
         }

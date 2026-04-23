@@ -52,19 +52,17 @@ class ListService
     public function getListsFromDatabase(): array
     {
         $sql = "
-            SELECT 
-                list_id, 
-                list_name, 
-                campaign_id, 
-                active, 
-                list_description 
-            FROM 
-                vicidial_lists
-            WHERE 
-                active = 'Y' 
-            ORDER BY 
-                list_id ASC
-        ";
+        SELECT 
+            list_id, 
+            list_name, 
+            campaign_id, 
+            active, 
+            list_description 
+        FROM 
+            vicidial_lists
+        ORDER BY 
+            list_id ASC
+    ";
 
         return $this->connection->fetchAllAssociative($sql);
     }
@@ -198,4 +196,24 @@ class ListService
             }
         }
     }
+    public function deleteList(string $listId): array
+{
+    if (empty($listId)) {
+        throw new \InvalidArgumentException('The field "list_id" is required');
+    }
+
+    $response = $this->handleApiRequest('POST', [
+        'source' => $this->source,
+        'user' => $this->apiUser,
+        'pass' => $this->apiPass,
+        'function' => 'delete_list',
+        'list_id' => $listId,
+    ]);
+
+    return [
+        'success' => true,
+        'message' => 'List deleted successfully',
+        'response' => $response,
+    ];
+}
 }

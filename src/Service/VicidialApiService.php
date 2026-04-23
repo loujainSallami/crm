@@ -138,4 +138,38 @@ class VicidialApiService
 
         return $users;
     }
+    public function getLeads(): array
+    {
+        $content = $this->requestVicidial($this->baseQuery('lead_search', [
+            'search_method' => 'ALL',
+            'search_location' => 'ALL',
+            'stage' => 'csv'
+        ]));
+
+        $lines = explode("\n", trim($content));
+        $leads = [];
+
+        foreach ($lines as $line) {
+            if ($line === '') {
+                continue;
+            }
+
+            $fields = explode('|', $line);
+
+            // adapte ce count selon le vrai retour Vicidial chez toi
+            if (count($fields) < 5) {
+                continue;
+            }
+
+            $leads[] = [
+                'ID' => $fields[0] ?? null,
+                'First Name' => $fields[1] ?? null,
+                'Last Name' => $fields[2] ?? null,
+                'Phone' => $fields[3] ?? null,
+                'Status' => $fields[4] ?? null,
+            ];
+        }
+
+        return $leads;
+    }
 }

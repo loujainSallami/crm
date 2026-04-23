@@ -4,8 +4,14 @@ doctrine:
     connections:
       default:
         url: '%env(resolve:DATABASE_URL)%'
+
       vicidial:
         url: '%env(resolve:VICIDIAL_DATABASE_URL)%'
+        server_version: 'mariadb-10.11.2'
+        idle_connection_ttl: 0
+
+      Datamart:
+        url: '%env(resolve:DATAMART_DATABASE_URL)%'
         server_version: 'mariadb-10.11.2'
 
   orm:
@@ -25,13 +31,3 @@ doctrine:
 
           GesdinetJWTRefreshTokenBundle:
             is_bundle: true
-
-      vicidial:
-        connection: vicidial
-        mappings:
-          Vicidial:
-            is_bundle: false
-            type: attribute
-            dir: '%kernel.project_dir%/src/Entity/Vicidial'
-            prefix: 'App\Entity\Vicidial'
-            alias: Vicidial

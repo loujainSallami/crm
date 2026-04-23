@@ -3,11 +3,15 @@ controllers:
         path: ../src/Controller/
         namespace: App\Controller
     type: attribute
+
 api_login_check:
     path: /api/login_check
+api_login:
+    path: /api/login
 api_refresh_token:
     path: /api/token/refresh
-    # USERS
+
+# USERS
 api_delete_user_direct:
     path: /api/vicidial/user/{userId}/delete-direct
     controller: App\Controller\UsersController\UserController::deleteUserDirectly
@@ -38,33 +42,32 @@ api_get_users:
     controller: App\Controller\UsersController\UserController::getUsers
     methods: [GET]
 
-# GROUP 
-
-api_add_group:
-    path: /api/vicidial/group
-    controller: App\Controller\UsersController\Group\GroupController::addGroup
-    methods: [POST]
-
-api_update_group:
-    path: /api/vicidial/group/{id}
-    controller: App\Controller\UsersController\Group\GroupController::updateGroup
-    methods: [PUT]
-
-api_delete_group:
-    path: /api/vicidial/group/{id}
-    controller: App\Controller\UsersController\Group\GroupController::deleteGroup
-    methods: [DELETE]
-
+# GROUPS
 api_get_groups:
     path: /api/vicidial/groups
     controller: App\Controller\UsersController\Group\GroupController::getGroups
     methods: [GET]
 
-api_user-groups:
+api_add_group:
+    path: /api/vicidial/groups/create
+    controller: App\Controller\UsersController\Group\GroupController::addGroup
+    methods: [POST]
+
+api_update_group:
+    path: /api/vicidial/groups/update/{userGroup}
+    controller: App\Controller\UsersController\Group\GroupController::updateGroup
+    methods: [PUT, POST]
+
+api_delete_group:
+    path: /api/vicidial/groups/{userGroup}
+    controller: App\Controller\UsersController\Group\GroupController::deleteGroup
+    methods: [DELETE]
+
+api_get_user_groups_from_group_controller:
     path: /api/vicidial/user-groups
     controller: App\Controller\UsersController\Group\GroupController::getUserGroups
     methods: [GET]
-    
+
 # CAMPAIGNS
 api_create_campaign:
     path: /api/vicidial/campaign
@@ -86,8 +89,6 @@ api_get_user_groups:
     controller: App\Controller\CampaignController\CampaignController::getUserGroups
     methods: [GET]
 
-
-
 api_get_campaigns:
     path: /api/vicidial/campaigns
     controller: App\Controller\CampaignController\CampaignController::getCampaigns
@@ -98,38 +99,107 @@ api_get_campaign:
     controller: App\Controller\CampaignController\CampaignController::getCampaign
     methods: [GET]
 
-#LISTS 
+# LISTS
+# =========================
+# AGENT VICIDIAL API
+# =========================
 
-api_get_lists:
-    path: /api/vicidial/lists
-    controller: App\Controller\Lists\ListController::getLists
+# STATUS
+api_agent_status:
+    path: /api/vicidial/agent/status/{agentUser}
+    controller: App\Controller\VicidialAgentController::status
     methods: [GET]
 
-api_get_list_info:
-    path: /api/vicidial/list/{listId}
-    controller: App\Controller\Lists\ListController::getListInfo
-    methods: GET
+# LOGOUT
+api_agent_logout:
+    path: /api/vicidial/agent/logout/{agentUser}
+    controller: App\Controller\VicidialAgentController::logout
+    methods: [GET]
 
-api_add_list:
-    path: /api/vicidial/list
-    controller: App\Controller\Lists\ListController::addList
-    methods: POST
-
-
-api_get_list_custom_fields:
-    path: /api/vicidial/list/custom-fields/{listId?}
-    controller: App\Controller\ListController::getCustomFields
-    methods: GET
-
-
-
-api_update_list:
-    path: /api/vicidial/list/{listId}
-    controller: App\Controller\ListController::updateList
-    methods: PUT
-
-
-vicidial_user_create:
-    path: /api/userCreate
-    controller: App\Controller\VicidialUserController::createUser
+# PAUSE
+api_agent_pause:
+    path: /api/vicidial/agent/pause/{agentUser}
+    controller: App\Controller\VicidialAgentController::pause
     methods: [POST]
+
+# RESUME
+api_agent_resume:
+    path: /api/vicidial/agent/resume/{agentUser}
+    controller: App\Controller\VicidialAgentController::resume
+    methods: [POST]
+
+# CALL
+api_agent_call:
+    path: /api/vicidial/agent/call
+    controller: App\Controller\VicidialAgentController::call
+    methods: [POST]
+
+# HANGUP
+api_agent_hangup:
+    path: /api/vicidial/agent/hangup/{agentUser}
+    controller: App\Controller\VicidialAgentController::hangup
+    methods: [POST]
+
+# TRANSFER
+api_agent_transfer:
+    path: /api/vicidial/agent/transfer
+    controller: App\Controller\VicidialAgentController::transfer
+    methods: [POST]
+
+# NEXT CALL
+api_agent_next_call:
+    path: /api/vicidial/agent/next-call/{agentUser}
+    controller: App\Controller\VicidialAgentController::nextCall
+    methods: [GET]
+
+# DISPOSITION
+api_agent_dispo:
+    path: /api/vicidial/agent/dispo
+    controller: App\Controller\VicidialAgentController::dispo
+    methods: [POST]
+
+# =========================
+# DBAL VICIDIAL (OPTIONNEL)
+# =========================
+
+# AGENT DB INFO
+api_agent_db:
+    path: /api/vicidial/agent/db-agent/{agentUser}
+    controller: App\Controller\VicidialAgentController::dbAgent
+    methods: [GET]
+
+# LIVE STATUS DB
+api_agent_live_status:
+    path: /api/vicidial/agent/live-status/{agentUser}
+    controller: App\Controller\VicidialAgentController::liveStatus
+    methods: [GET]
+
+# CURRENT LEAD
+api_agent_current_lead:
+    path: /api/vicidial/agent/current-lead/{agentUser}
+    controller: App\Controller\VicidialAgentController::currentLead
+    methods: [GET]
+
+# PAUSE CODES
+api_agent_pause_codes:
+    path: /api/vicidial/agent/pause-codes
+    controller: App\Controller\VicidialAgentController::pauseCodes
+    methods: [GET]
+
+# STATUSES
+api_agent_statuses:
+    path: /api/vicidial/agent/statuses
+    controller: App\Controller\VicidialAgentController::statuses
+    methods: [GET]
+
+# CAMPAIGN STATUSES
+api_agent_campaign_statuses:
+    path: /api/vicidial/agent/campaign-statuses/{campaignId}
+    controller: App\Controller\VicidialAgentController::campaignStatuses
+    methods: [GET]
+
+# DASHBOARD GLOBAL
+api_agent_dashboard:
+    path: /api/vicidial/agent/dashboard/{agentUser}
+    controller: App\Controller\VicidialAgentController::dashboard
+    methods: [GET]

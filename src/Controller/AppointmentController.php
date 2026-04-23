@@ -3,9 +3,9 @@
 namespace App\Controller;
 
 use App\Entity\CRM\Appointment;
-use App\Entity\CRM\CrmUser;
-use App\Entity\Vicidial\CrmLead;
 use App\Repository\AppointmentRepository;
+use App\Service\AppointmentService;
+use App\Service\VicidialDbService;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -19,165 +19,318 @@ class AppointmentController extends AbstractController
 {
     public function __construct(
         private readonly ManagerRegistry $doctrine,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly AppointmentService $appointmentService,
+        private readonly VicidialDbService $vicidialDbService
     ) {}
 
     #[Route('', name: 'appointment_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
-        $crmEm = $this->doctrine->getManager('crm');
-        $vicidialEm = $this->doctrine->getManager('vicidial');
-
         $data = json_decode($request->getContent(), true);
-        if (!$data) {
+
+        if (!is_array($data)) {
             return $this->json(['error' => 'JSON invalide'], Response::HTTP_BAD_REQUEST);
         }
 
-        $userId = $data['userId'] ?? null;
-        if (!$userId) {
-            return $this->json(['error' => 'userId manquant'], 400);
+        $vicidialUser = $data['vicidialUser'] ?? null;
+        $leadId = array_key_exists('leadId', $data) && $data['leadId'] !== '' ? (int) $data['leadId'] : null;
+        $campaignId = array_key_exists('campaignId', $data) && $data['campaignId'] !== '' ? (string) $data['campaignId'] : null;
+        $description = (string) ($data['description'] ?? '');
+
+        if (!$vicidialUser) {
+            return $this->json(['error' => 'vicidialUser manquant'], 400);
         }
 
-        /** @var CrmUser|null $user */
-        $user = $crmEm->getRepository(CrmUser::class)->find((int)$userId);
-        if (!$user) {
-            return $this->json(['error' => 'Utilisateur introuvable', 'userId' => $userId], 404);
+        if (!$this->vicidialDbService->userExists($vicidialUser)) {
+            return $this->json([
+                'error' => 'Utilisateur Vicidial introuvable',
+                'vicidialUser' => $vicidialUser,
+            ], 404);
         }
 
-        $leadId = $data['leadId'] ?? null;
-        if ($leadId !== null) {
-            $lead = $vicidialEm->getRepository(CrmLead::class)->find((int)$leadId);
-            if (!$lead) {
-                return $this->json(['error' => 'Lead introuvable', 'leadId' => $leadId], 404);
-            }
+        if ($leadId !== null && !$this->vicidialDbService->leadExists($leadId)) {
+            return $this->json([
+                'error' => 'Lead introuvable',
+                'leadId' => $leadId,
+            ], 404);
+        }
+
+        if ($campaignId !== null && !$this->vicidialDbService->campaignExists($campaignId)) {
+            return $this->json([
+                'error' => 'Campagne introuvable',
+                'campaignId' => $campaignId,
+            ], 404);
         }
 
         try {
             $start = new \DateTime($data['startTime'] ?? '');
-            $end   = new \DateTime($data['endTime'] ?? '');
+            $end = new \DateTime($data['endTime'] ?? '');
         } catch (\Throwable $e) {
             return $this->json(['error' => 'Format de date invalide'], 400);
         }
 
-        $appointment = new Appointment();
-        $appointment->setCrmUser($user);
-        $appointment->setDescription((string)($data['description'] ?? ''));
-        $appointment->setStartTime($start);
-        $appointment->setEndTime($end);
-        $appointment->setVicidialLeadId($leadId !== null ? (int)$leadId : null);
+        try {
+            $appointment = $this->appointmentService->createAppointment(
+                $vicidialUser,
+                $start,
+                $end,
+                $description,
+                $leadId,
+                $campaignId
+            );
 
-        $crmEm->persist($appointment);
-        $crmEm->flush();
+            return $this->json([
+                'message' => 'Rendez-vous créé',
+                'id' => $appointment->getId(),
+            ], 201);
+        } catch (\Throwable $e) {
+            $this->logger->error('Erreur création rendez-vous: ' . $e->getMessage());
 
-        return $this->json(['message' => 'Rendez-vous créé', 'id' => $appointment->getId()], 201);
+            return $this->json([
+                'error' => $e->getMessage(),
+            ], 400);
+        }
     }
-
+    #[Route('/{id}', name: 'appointment_get_by_id', methods: ['GET'])]
+    public function getById(int $id): JsonResponse
+    {
+        $crmEm = $this->doctrine->getManager('crm');
+    
+        /** @var Appointment|null $appointment */
+        $appointment = $crmEm->getRepository(Appointment::class)->find($id);
+    
+        if (!$appointment) {
+            return $this->json(['error' => 'Rendez-vous non trouvé'], 404);
+        }
+    
+        $user = null;
+        $lead = null;
+        $campaign = null;
+    
+        if ($appointment->getVicidialUser()) {
+            $user = $this->vicidialDbService->getUserByUsername($appointment->getVicidialUser());
+        }
+    
+        if ($appointment->getVicidialLeadId()) {
+            $lead = $this->vicidialDbService->getLeadById($appointment->getVicidialLeadId());
+        }
+    
+        if (method_exists($appointment, 'getVicidialCampaignId') && $appointment->getVicidialCampaignId()) {
+            $campaign = $this->vicidialDbService->getCampaignById($appointment->getVicidialCampaignId());
+        }
+    
+        $data = [
+            'id' => $appointment->getId(),
+            'startTime' => $appointment->getStartTime()?->format('Y-m-d H:i:s'),
+            'endTime' => $appointment->getEndTime()?->format('Y-m-d H:i:s'),
+            'description' => $appointment->getDescription(),
+            'vicidialUser' => $appointment->getVicidialUser(),
+            'vicidialLeadId' => $appointment->getVicidialLeadId(),
+            'user' => $user,
+            'lead' => $lead,
+        ];
+    
+        if (method_exists($appointment, 'getVicidialCampaignId')) {
+            $data['vicidialCampaignId'] = $appointment->getVicidialCampaignId();
+            $data['campaign'] = $campaign;
+        }
+    
+        return $this->json($data, 200);
+    }
+    
+    #[Route('/userapp/{vicidialUser}', name: 'appointment_get_by_user', methods: ['GET'])]
+    public function getByUser(string $vicidialUser, AppointmentRepository $appointmentRepository): JsonResponse
+    {
+        if (!$this->vicidialDbService->userExists($vicidialUser)) {
+            return $this->json([
+                'error' => 'Utilisateur Vicidial introuvable',
+                'vicidialUser' => $vicidialUser,
+            ], 404);
+        }
+    
+        $appointments = $appointmentRepository->findByVicidialUser($vicidialUser);
+        $data = [];
+    
+        foreach ($appointments as $a) {
+            $lead = null;
+            $campaign = null;
+    
+            if ($a->getVicidialLeadId()) {
+                $lead = $this->vicidialDbService->getLeadById($a->getVicidialLeadId());
+            }
+    
+            if (method_exists($a, 'getVicidialCampaignId') && $a->getVicidialCampaignId()) {
+                $campaign = $this->vicidialDbService->getCampaignById($a->getVicidialCampaignId());
+            }
+    
+            $row = [
+                'id' => $a->getId(),
+                'startTime' => $a->getStartTime()?->format('Y-m-d H:i:s'),
+                'endTime' => $a->getEndTime()?->format('Y-m-d H:i:s'),
+                'description' => $a->getDescription(),
+                'vicidialUser' => $a->getVicidialUser(),
+                'vicidialLeadId' => $a->getVicidialLeadId(),
+                'user' => $this->vicidialDbService->getUserByUsername($a->getVicidialUser()),
+                'lead' => $lead,
+            ];
+    
+            if (method_exists($a, 'getVicidialCampaignId')) {
+                $row['vicidialCampaignId'] = $a->getVicidialCampaignId();
+                $row['campaign'] = $campaign;
+            }
+    
+            $data[] = $row;
+        }
+    
+        return $this->json($data, 200);
+    }
     #[Route('/{id}', name: 'appointment_update', methods: ['PUT'])]
     public function update(Request $request, int $id): JsonResponse
     {
         $crmEm = $this->doctrine->getManager('crm');
-        $vicidialEm = $this->doctrine->getManager('vicidial');
 
         /** @var Appointment|null $appointment */
         $appointment = $crmEm->getRepository(Appointment::class)->find($id);
+
         if (!$appointment) {
             return $this->json(['error' => 'Rendez-vous non trouvé'], 404);
         }
 
         $data = json_decode($request->getContent(), true);
-        if (!$data) {
+
+        if (!is_array($data)) {
             return $this->json(['error' => 'JSON invalide'], 400);
         }
 
-        if (isset($data['userId'])) {
-            $user = $crmEm->getRepository(CrmUser::class)->find((int)$data['userId']);
-            if (!$user) {
-                return $this->json(['error' => 'Utilisateur introuvable', 'userId' => $data['userId']], 404);
-            }
-            $appointment->setCrmUser($user);
+        $vicidialUser = array_key_exists('vicidialUser', $data)
+            ? $data['vicidialUser']
+            : $appointment->getVicidialUser();
+
+        if (!$vicidialUser) {
+            return $this->json(['error' => 'vicidialUser manquant'], 400);
+        }
+
+        if (!$this->vicidialDbService->userExists($vicidialUser)) {
+            return $this->json([
+                'error' => 'Utilisateur Vicidial introuvable',
+                'vicidialUser' => $vicidialUser,
+            ], 404);
         }
 
         if (array_key_exists('leadId', $data)) {
-            $leadId = $data['leadId'];
-            if ($leadId === null || $leadId === '') {
-                $appointment->setVicidialLeadId(null);
+            if ($data['leadId'] === null || $data['leadId'] === '') {
+                $leadId = null;
             } else {
-                $lead = $vicidialEm->getRepository(CrmLead::class)->find((int)$leadId);
-                if (!$lead) {
-                    return $this->json(['error' => 'Lead introuvable', 'leadId' => $leadId], 404);
+                $leadId = (int) $data['leadId'];
+
+                if (!$this->vicidialDbService->leadExists($leadId)) {
+                    return $this->json([
+                        'error' => 'Lead introuvable',
+                        'leadId' => $leadId,
+                    ], 404);
                 }
-                $appointment->setVicidialLeadId((int)$leadId);
             }
+        } else {
+            $leadId = $appointment->getVicidialLeadId();
         }
 
-        if (isset($data['description'])) {
-            $appointment->setDescription((string)$data['description']);
+        if (array_key_exists('campaignId', $data)) {
+            if ($data['campaignId'] === null || $data['campaignId'] === '') {
+                $campaignId = null;
+            } else {
+                $campaignId = (string) $data['campaignId'];
+
+                if (!$this->vicidialDbService->campaignExists($campaignId)) {
+                    return $this->json([
+                        'error' => 'Campagne introuvable',
+                        'campaignId' => $campaignId,
+                    ], 404);
+                }
+            }
+        } else {
+            $campaignId = method_exists($appointment, 'getVicidialCampaignId')
+                ? $appointment->getVicidialCampaignId()
+                : null;
         }
 
-        if (isset($data['startTime'])) {
-            try { $appointment->setStartTime(new \DateTime($data['startTime'])); }
-            catch (\Throwable $e) { return $this->json(['error' => 'startTime invalide'], 400); }
+        try {
+            $start = array_key_exists('startTime', $data)
+            ? new \DateTime($data['startTime'])
+            : $appointment->getStartTime();
+        
+        $end = array_key_exists('endTime', $data)
+            ? new \DateTime($data['endTime'])
+            : $appointment->getEndTime();
+        } catch (\Throwable $e) {
+            return $this->json(['error' => 'Format de date invalide'], 400);
         }
 
-        if (isset($data['endTime'])) {
-            try { $appointment->setEndTime(new \DateTime($data['endTime'])); }
-            catch (\Throwable $e) { return $this->json(['error' => 'endTime invalide'], 400); }
+        $description = array_key_exists('description', $data)
+            ? (string) $data['description']
+            : $appointment->getDescription();
+
+        try {
+            $this->appointmentService->updateAppointment(
+                $appointment,
+                $vicidialUser,
+                $start,
+                $end,
+                $description,
+                $leadId,
+                $campaignId
+            );
+
+            return $this->json(['message' => 'Rendez-vous mis à jour'], 200);
+        } catch (\Throwable $e) {
+            $this->logger->error('Erreur mise à jour rendez-vous: ' . $e->getMessage());
+
+            return $this->json([
+                'error' => $e->getMessage(),
+            ], 400);
         }
-
-        $crmEm->flush();
-
-        return $this->json(['message' => 'Rendez-vous mis à jour'], 200);
     }
 
     #[Route('', name: 'appointment_list_all', methods: ['GET'])]
     public function listAll(AppointmentRepository $appointmentRepository): JsonResponse
     {
-        $vicidialEm = $this->doctrine->getManager('vicidial');
-
         $appointments = $appointmentRepository->findAll();
-
-        // collect leadIds
-        $leadIds = [];
-        foreach ($appointments as $a) {
-            if ($a->getVicidialLeadId()) $leadIds[] = $a->getVicidialLeadId();
-        }
-        $leadIds = array_values(array_unique($leadIds));
-
-        // fetch leads
-        $leadsById = [];
-        if ($leadIds) {
-            $leads = $vicidialEm->getRepository(CrmLead::class)->findBy(['id' => $leadIds]);
-            foreach ($leads as $l) $leadsById[$l->getId()] = $l;
-        }
-
         $data = [];
+
         foreach ($appointments as $a) {
+            $user = null;
             $lead = null;
-            $leadId = $a->getVicidialLeadId();
-            if ($leadId && isset($leadsById[$leadId])) {
-                $l = $leadsById[$leadId];
-                $lead = [
-                    'id' => $l->getId(),
-                    'firstName' => $l->getFirstName(),
-                    'lastName' => $l->getLastName(),
-                    'phoneNumber' => $l->getPhoneNumber(),
-                    'email' => $l->getEmail(),
-                ];
+            $campaign = null;
+
+            if ($a->getVicidialUser()) {
+                $user = $this->vicidialDbService->getUserByUsername($a->getVicidialUser());
             }
 
-            $data[] = [
+            if ($a->getVicidialLeadId()) {
+                $lead = $this->vicidialDbService->getLeadById($a->getVicidialLeadId());
+            }
+
+            if (method_exists($a, 'getVicidialCampaignId') && $a->getVicidialCampaignId()) {
+                $campaign = $this->vicidialDbService->getCampaignById($a->getVicidialCampaignId());
+            }
+
+            $row = [
                 'id' => $a->getId(),
                 'startTime' => $a->getStartTime()?->format('Y-m-d H:i:s'),
                 'endTime' => $a->getEndTime()?->format('Y-m-d H:i:s'),
                 'description' => $a->getDescription(),
-                'user' => $a->getCrmUser() ? [
-                    'id' => $a->getCrmUser()->getId(),
-                    'username' => $a->getCrmUser()->getUsername(),
-                    'fullName' => $a->getCrmUser()->getFullName(),
-                ] : null,
-                'vicidialLeadId' => $leadId,
+                'vicidialUser' => $a->getVicidialUser(),
+                'vicidialLeadId' => $a->getVicidialLeadId(),
+                'user' => $user,
                 'lead' => $lead,
             ];
+
+            if (method_exists($a, 'getVicidialCampaignId')) {
+                $row['vicidialCampaignId'] = $a->getVicidialCampaignId();
+                $row['campaign'] = $campaign;
+            }
+
+            $data[] = $row;
         }
 
         return $this->json($data);
@@ -190,11 +343,11 @@ class AppointmentController extends AbstractController
 
         /** @var Appointment|null $appointment */
         $appointment = $crmEm->getRepository(Appointment::class)->find($id);
+
         if (!$appointment) {
             return $this->json(['error' => 'Rendez-vous non trouvé'], 404);
         }
 
-        // si tu veux supprimer aussi notes/tasks: à faire ici
         $crmEm->remove($appointment);
         $crmEm->flush();
 
